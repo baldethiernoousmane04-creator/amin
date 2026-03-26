@@ -151,7 +151,8 @@ async function sendMessage() {
     typingEl.classList.remove('active');
     addMessage('assistant', reply);
     history.push({ role: 'assistant', content: reply });
-    if (data.audio) playAudio(data.audio);
+   if (data.audio) playAudio(data.audio);
+    else speakText(reply);
   } catch (err) {
     typingEl.classList.remove('active');
     addMessage('assistant', "Problème de connexion. Réessaie.");
