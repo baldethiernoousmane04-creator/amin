@@ -117,7 +117,13 @@ function playAudio(base64) {
     audio.play();
   } catch(e) { console.error('Audio error:', e); }
 }
-
+ function speakText(text) {
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = 'fr-FR';
+  utter.rate = 1;
+  utter.pitch = 1;
+  window.speechSynthesis.speak(utter);
+}
 function addMessage(role, text) {
   const div = document.createElement('div');
   div.className = 'msg ' + (role === 'assistant' ? 'amin' : 'user');
