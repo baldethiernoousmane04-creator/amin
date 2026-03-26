@@ -50,11 +50,41 @@ export default async function handler(req, res) {
   const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
   if (!ANTHROPIC_KEY) {
-    return res.status(500).json({ reply: "Clé API manquante. Configure ANTHROPIC_KEY dans Vercel." });
+    return res.status(500).json({ reply: "Clé API manquante." });
   }
 
   try {
-    // Save user message to Supabase (non-blocking)
+    // 1. Charger la mémoire des sessions précédentes
+    const memRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/memories?order=created_at.asc&limit=30`,
+      {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        }
+      }
+    );
+    const memories = await memRes.json();
+
+    // 2. Construire l'historique complet (mémoire + session actuelle)
+    let fullHistory = [];
+    if (Array.isArray(memories) && memories.length > 0) {
+      const pastMessages = memories.map(m => ({
+        role: m.role,
+        content: m.content
+      }));
+      // Éviter les doublons avec la session actuelle
+      fullHistory = [...pastMessages];
+      // Ajouter seulement le dernier message user de la session actuelle
+      const lastUserMsg = messages[messages.length - 1];
+      if (lastUserMsg && lastUserMsg.role === 'user') {
+        fullHistory.push(lastUserMsg);
+      }
+    } else {
+      fullHistory = messages;
+    }
+
+    // 3. Sauvegarder le message user
     const lastMsg = messages[messages.length - 1];
     fetch(`${SUPABASE_URL}/rest/v1/memories`, {
       method: 'POST',
@@ -66,7 +96,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({ role: lastMsg.role, content: lastMsg.content, session_id })
     }).catch(() => {});
 
-    // Call Anthropic
+    // 4. Appeler Anthropic avec la mémoire complète
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -78,20 +108,20 @@ export default async function handler(req, res) {
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 1000,
         system: SYSTEM_PROMPT,
-        messages: messages
+        messages: fullHistory
       })
     });
 
     if (!response.ok) {
       const err = await response.json();
       console.error('Anthropic error:', err);
-      return res.status(500).json({ reply: "Erreur API Anthropic. Vérifie ta clé et tes crédits." });
+      return res.status(500).json({ reply: "Erreur API Anthropic." });
     }
 
     const data = await response.json();
     const reply = data.content?.[0]?.text || "Je suis là Cherno.";
 
-    // Save AMIN reply to Supabase (non-blocking)
+    // 5. Sauvegarder la réponse AMIN
     fetch(`${SUPABASE_URL}/rest/v1/memories`, {
       method: 'POST',
       headers: {
