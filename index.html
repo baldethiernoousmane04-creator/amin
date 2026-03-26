@@ -10,15 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  :root {
-    --bg: #000;
-    --surface: #111;
-    --border: #1f1f1f;
-    --text: #fff;
-    --text-dim: #444;
-    --accent: #fff;
-    --bubble-user: #1a1a1a;
-  }
+  :root { --bg: #000; --surface: #111; --border: #1f1f1f; --text: #fff; --text-dim: #444; }
   html, body { height: 100%; height: 100dvh; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; }
   .app { display: flex; flex-direction: column; height: 100dvh; }
   .header { padding: 16px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -33,7 +25,7 @@
   .msg.amin { align-items: flex-start; }
   .msg-bubble { max-width: 80%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
   .msg.amin .msg-bubble { background: var(--surface); color: var(--text); border-bottom-left-radius: 4px; border: 1px solid var(--border); }
-  .msg.user .msg-bubble { background: var(--bubble-user); color: var(--text); border-bottom-right-radius: 4px; border: 1px solid var(--border); }
+  .msg.user .msg-bubble { background: #1a1a1a; color: var(--text); border-bottom-right-radius: 4px; border: 1px solid var(--border); }
   .typing { display: none; align-items: center; gap: 6px; padding: 0 16px 8px; flex-shrink: 0; }
   .typing.active { display: flex; }
   .typing-text { font-size: 12px; color: var(--text-dim); }
@@ -50,6 +42,10 @@
   .send:active { transform: scale(0.93); }
   .send:disabled { opacity: 0.3; cursor: not-allowed; }
   .send svg { fill: #000; }
+  .mic-btn { width: 42px; height: 42px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .mic-btn.listening { background: #ff3b30; border-color: #ff3b30; animation: micPulse 1s infinite; }
+  @keyframes micPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+  .mic-btn svg { fill: #fff; }
 </style>
 </head>
 <body>
@@ -64,9 +60,12 @@
   <div class="messages" id="messages"></div>
   <div class="typing" id="typing">
     <div class="dots"><span></span><span></span><span></span></div>
-    <span class="typing-text">AMIN écrit...</span>
+    <span class="typing-text">AMIN parle...</span>
   </div>
   <div class="input-wrap">
+    <button class="mic-btn" id="micBtn" onclick="toggleMic()">
+      <svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm0 2a2 2 0 0 0-2 2v6a2 2 0 0 0 4 0V5a2 2 0 0 0-2-2zm-1 14.93A8 8 0 0 1 4 11H2a10 10 0 0 0 9 9.93V23h2v-2.07A10 10 0 0 0 22 11h-2a8 8 0 0 1-7 7.93z"/></svg>
+    </button>
     <textarea id="input" placeholder="Dis moi ce que tu veux..." rows="1"></textarea>
     <button class="send" id="sendBtn" onclick="sendMessage()">
       <svg width="16" height="16" viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
@@ -79,8 +78,45 @@ const messagesEl = document.getElementById('messages');
 const inputEl = document.getElementById('input');
 const typingEl = document.getElementById('typing');
 const sendBtn = document.getElementById('sendBtn');
+const micBtn = document.getElementById('micBtn');
 let history = [];
 let isLoading = false;
+let recognition = null;
+
+// Speech Recognition
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = 'fr-FR';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.onresult = (e) => {
+    const transcript = e.results[0][0].transcript;
+    inputEl.value = transcript;
+    micBtn.classList.remove('listening');
+    sendMessage();
+  };
+  recognition.onend = () => micBtn.classList.remove('listening');
+  recognition.onerror = () => micBtn.classList.remove('listening');
+}
+
+function toggleMic() {
+  if (!recognition) return;
+  if (micBtn.classList.contains('listening')) {
+    recognition.stop();
+    micBtn.classList.remove('listening');
+  } else {
+    recognition.start();
+    micBtn.classList.add('listening');
+  }
+}
+
+function playAudio(base64) {
+  try {
+    const audio = new Audio('data:audio/mp3;base64,' + base64);
+    audio.play();
+  } catch(e) { console.error('Audio error:', e); }
+}
 
 function addMessage(role, text) {
   const div = document.createElement('div');
@@ -115,20 +151,19 @@ async function sendMessage() {
     typingEl.classList.remove('active');
     addMessage('assistant', reply);
     history.push({ role: 'assistant', content: reply });
+    if (data.audio) playAudio(data.audio);
   } catch (err) {
     typingEl.classList.remove('active');
     addMessage('assistant', "Problème de connexion. Réessaie.");
   }
   isLoading = false;
   sendBtn.disabled = false;
-  inputEl.focus();
 }
 
 inputEl.addEventListener('input', function() {
   this.style.height = 'auto';
   this.style.height = Math.min(this.scrollHeight, 100) + 'px';
 });
-
 inputEl.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
