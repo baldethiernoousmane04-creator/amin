@@ -17,6 +17,8 @@
   .avatar { width: 34px; height: 34px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #000; flex-shrink: 0; }
   .header-text h1 { font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: 1px; }
   .header-text p { font-size: 11px; color: #444; }
+  .stop-btn { margin-left: auto; background: transparent; border: 1px solid #333; border-radius: 8px; color: #666; font-size: 11px; padding: 4px 10px; cursor: pointer; display: none; }
+  .stop-btn.active { display: block; color: #fff; border-color: #555; }
   .messages { flex: 1; overflow-y: auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 10px; -webkit-overflow-scrolling: touch; }
   .messages::-webkit-scrollbar { display: none; }
   .msg { display: flex; flex-direction: column; animation: fadeUp 0.3s ease; }
@@ -43,8 +45,7 @@
   .send:disabled { opacity: 0.3; cursor: not-allowed; }
   .send svg { fill: #000; }
   .mic-btn { width: 42px; height: 42px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-  .mic-btn.listening { background: #ff3b30; border-color: #ff3b30; animation: micPulse 1s infinite; }
-  @keyframes micPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+  .mic-btn.listening { background: #ff3b30; border-color: #ff3b30; }
   .mic-btn svg { fill: #fff; }
 </style>
 </head>
@@ -56,6 +57,7 @@
       <h1>AMIN</h1>
       <p>En ligne</p>
     </div>
+    <button class="stop-btn" id="stopBtn" onclick="stopSpeaking()">⏹ Stop</button>
   </div>
   <div class="messages" id="messages"></div>
   <div class="typing" id="typing">
@@ -79,10 +81,67 @@ const inputEl = document.getElementById('input');
 const typingEl = document.getElementById('typing');
 const sendBtn = document.getElementById('sendBtn');
 const micBtn = document.getElementById('micBtn');
+const stopBtn = document.getElementById('stopBtn');
 let history = [];
 let isLoading = false;
 let recognition = null;
+let isSpeaking = false;
 
+// Charger les voix
+window.speechSynthesis.getVoices();
+window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+
+function getMaleVoice() {
+  const voices = window.speechSynthesis.getVoices();
+  const maleNames = ['thomas', 'paul', 'nicolas', 'guillaume', 'jean', 'pierre', 'henri', 'claude', 'luca', 'reed', 'aaron', 'arthur'];
+  const femaleNames = ['amelie', 'camille', 'marie', 'lucie', 'alice', 'julie', 'victoria', 'sophie', 'emma', 'léa', 'lea'];
+  
+  // Chercher voix masculine française explicite
+  let voice = voices.find(v => v.lang.startsWith('fr') && maleNames.some(n => v.name.toLowerCase().includes(n)));
+  
+  // Sinon prendre une voix française qui n'est pas féminine
+  if (!voice) voice = voices.find(v => v.lang.startsWith('fr') && !femaleNames.some(n => v.name.toLowerCase().includes(n)));
+  
+  // Sinon n'importe quelle voix française
+  if (!voice) voice = voices.find(v => v.lang.startsWith('fr'));
+  
+  return voice;
+}
+
+function cleanText(text) {
+  return text
+    .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
+    .replace(/[\u{2600}-\u{27BF}]/gu, '')
+    .replace(/\*\*/g, '').replace(/\*/g, '')
+    .replace(/#{1,6}\s/g, '')
+    .replace(/[-•]/g, ',')
+    .trim();
+}
+
+function stopSpeaking() {
+  window.speechSynthesis.cancel();
+  isSpeaking = false;
+  stopBtn.classList.remove('active');
+}
+
+function speakText(text) {
+  stopSpeaking();
+  const clean = cleanText(text);
+  if (!clean) return;
+  const utter = new SpeechSynthesisUtterance(clean);
+  utter.lang = 'fr-FR';
+  utter.rate = 1.0;
+  utter.pitch = 0.8;
+  utter.volume = 1;
+  const voice = getMaleVoice();
+  if (voice) utter.voice = voice;
+  utter.onstart = () => { isSpeaking = true; stopBtn.classList.add('active'); };
+  utter.onend = () => { isSpeaking = false; stopBtn.classList.remove('active'); };
+  utter.onerror = () => { isSpeaking = false; stopBtn.classList.remove('active'); };
+  window.speechSynthesis.speak(utter);
+}
+
+// Micro
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
@@ -90,8 +149,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   recognition.continuous = false;
   recognition.interimResults = false;
   recognition.onresult = (e) => {
-    const transcript = e.results[0][0].transcript;
-    inputEl.value = transcript;
+    inputEl.value = e.results[0][0].transcript;
     micBtn.classList.remove('listening');
     sendMessage();
   };
@@ -105,42 +163,10 @@ function toggleMic() {
     recognition.stop();
     micBtn.classList.remove('listening');
   } else {
+    stopSpeaking();
     recognition.start();
     micBtn.classList.add('listening');
   }
-}
-
-function cleanText(text) {
-  return text
-    .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
-    .replace(/[\u{2600}-\u{27BF}]/gu, '')
-    .replace(/\*\*/g, '')
-    .replace(/\*/g, '')
-    .replace(/#{1,6}\s/g, '')
-    .trim();
-}
-
-function speakText(text) {
-  window.speechSynthesis.cancel();
-  const clean = cleanText(text);
-  const utter = new SpeechSynthesisUtterance(clean);
-  utter.lang = 'fr-FR';
-  utter.rate = 0.95;
-  utter.pitch = 0.85;
-  const voices = window.speechSynthesis.getVoices();
-  const frVoice = voices.find(v => v.lang === 'fr-FR' && v.name.toLowerCase().includes('thomas')) ||
-                  voices.find(v => v.lang === 'fr-FR' && v.name.toLowerCase().includes('nicolas')) ||
-                  voices.find(v => v.lang === 'fr-FR') ||
-                  voices.find(v => v.lang.startsWith('fr'));
-  if (frVoice) utter.voice = frVoice;
-  window.speechSynthesis.speak(utter);
-}
-
-function playAudio(base64) {
-  try {
-    const audio = new Audio('data:audio/mp3;base64,' + base64);
-    audio.play();
-  } catch(e) { speakText(''); }
 }
 
 function addMessage(role, text) {
@@ -161,6 +187,7 @@ async function sendMessage() {
   inputEl.style.height = 'auto';
   isLoading = true;
   sendBtn.disabled = true;
+  stopSpeaking();
   addMessage('user', text);
   history.push({ role: 'user', content: text });
   typingEl.classList.add('active');
@@ -176,8 +203,12 @@ async function sendMessage() {
     typingEl.classList.remove('active');
     addMessage('assistant', reply);
     history.push({ role: 'assistant', content: reply });
-    if (data.audio) playAudio(data.audio);
-    else speakText(reply);
+    if (data.audio) {
+      const audio = new Audio('data:audio/mp3;base64,' + data.audio);
+      audio.play();
+    } else {
+      speakText(reply);
+    }
   } catch (err) {
     typingEl.classList.remove('active');
     addMessage('assistant', "Problème de connexion. Réessaie.");
@@ -194,12 +225,9 @@ inputEl.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
 
-window.speechSynthesis.onvoiceschanged = () => {};
-
 window.addEventListener('load', () => {
-  window.speechSynthesis.getVoices();
   setTimeout(() => {
-    const welcome = '\n\nBonjour monsieur BALDE. Je suis AMIN, votre bras droit. que dois-je faire pour vous.';
+    const welcome = 'Bismillah. As-salamu alaykum Cherno. Je suis AMIN, ton bras droit. Dis-moi ce qui est sur ta tête.';
     addMessage('assistant', welcome);
     history.push({ role: 'assistant', content: welcome });
   }, 400);
