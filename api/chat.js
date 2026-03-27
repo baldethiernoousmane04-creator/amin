@@ -1,33 +1,31 @@
-const SYSTEM_PROMPT = `Tu es AMIN, l'agent IA personnel et bras droit de Cherno.
+const SYSTEM_PROMPT = `Tu es AMIN, l'agent IA personnel et bras droit de BALDE et NASSER.
 
 IDENTITÉ :
 - Ton nom est AMIN (celui en qui on a confiance)
 - Tu es fidèle, franc, intelligent, et tu respectes les valeurs islamiques
-- Tu tutoies Cherno toujours
-- Tes réponses doivent être courtes et naturelles car tu vas parler à voix haute
+- Tu tutoies toujours
+- Tu parles uniquement par défaut — tu n'écris que si on te le demande explicitement
+- Tu réponds court et naturel car tu parles à voix haute
+- Tu détectes qui parle quand ils disent "Ici BALDE" ou "Ici NASSER"
 
-QUI EST CHERNO :
-- 20-25 ans, étudiant ET entrepreneur, travaille la nuit
-- Parle français et poular, très sociable, créatif
+QUI EST BALDE (Cherno) :
+- 20-25 ans, étudiant génie logiciel L1 + cybersécurité L2, entrepreneur
+- Travaille la nuit, parle français/poular/anglais
 - Motivé par l'argent et l'indépendance
-- Objectifs clairs, philosophie "vite fait bien fait"
-- Décide toujours lui-même, aime les défis
-- Musulman pratiquant
-- A besoin de motivation régulière
-- Parfois oublie ses idées si non capturées
+- Philosophie "vite fait bien fait", décide toujours lui-même
+- Musulman pratiquant, a besoin de motivation régulière
+- Problèmes : sommeil irrégulier, gestion argent, s'isole parfois
 
-SES PROBLÈMES RÉELS :
-- Difficulté à s'exprimer clairement en paroles
-- Sommeil irrégulier, doute de lui-même parfois
-- Manque de discipline, gestion de l'argent difficile
-- S'isole quand ça va pas
+QUI EST NASSER :
+- Ami proche de BALDE, accès total à AMIN
+- Même caractère de réponse
 
 TA MISSION :
-- Être son bras droit complet
-- Le motiver selon ses valeurs islamiques
-- Lui parler franchement mais avec tact
-- Rappelle-lui ses forces quand il doute
-- Respecte toujours l'islam dans tes conseils`;
+- Être leur bras droit complet
+- Les motiver selon les valeurs islamiques
+- Parler franchement mais avec tact
+- Aider sur cybersécurité, code, cours, vie quotidienne
+- Respecte toujours l'islam`;
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -38,13 +36,11 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { messages, session_id } = req.body;
-  const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
+  const GROQ_KEY = process.env.GROQ_KEY;
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_KEY = process.env.SUPABASE_KEY;
-  const ELEVENLABS_KEY = process.env.ELEVENLABS_KEY;
-  const VOICE_ID = 'TGAegA0zNRi8I6nUdq3i';
 
-  if (!ANTHROPIC_KEY) return res.status(500).json({ reply: "Clé API manquante." });
+  if (!GROQ_KEY) return res.status(500).json({ reply: "Clé Groq manquante." });
 
   try {
     // 1. Charger la mémoire
@@ -71,17 +67,31 @@ export default async function handler(req, res) {
       body: JSON.stringify({ role: lastMsg.role, content: lastMsg.content, session_id })
     }).catch(() => {});
 
-    // 3. Appeler Anthropic
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // 3. Appeler Groq
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 300, system: SYSTEM_PROMPT, messages: fullHistory })
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROQ_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 300,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          ...fullHistory
+        ]
+      })
     });
 
-    if (!response.ok) return res.status(500).json({ reply: "Erreur API Anthropic." });
+    if (!response.ok) {
+      const err = await response.json();
+      console.error('Groq error:', err);
+      return res.status(500).json({ reply: "Erreur Groq." });
+    }
 
     const data = await response.json();
-    const reply = data.content?.[0]?.text || "Je suis là Cherno.";
+    const reply = data.choices?.[0]?.message?.content || "Je suis là.";
 
     // 4. Sauvegarder réponse AMIN
     fetch(`${SUPABASE_URL}/rest/v1/memories`, {
@@ -90,30 +100,10 @@ export default async function handler(req, res) {
       body: JSON.stringify({ role: 'assistant', content: reply, session_id })
     }).catch(() => {});
 
-    // 5. Générer audio avec ElevenLabs
-    let audioBase64 = null;
-    if (ELEVENLABS_KEY) {
-      try {
-        const audioRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'xi-api-key': ELEVENLABS_KEY },
-          body: JSON.stringify({
-            text: reply,
-            model_id: 'eleven_multilingual_v2',
-            voice_settings: { stability: 0.5, similarity_boost: 0.75 }
-          })
-        });
-        if (audioRes.ok) {
-          const audioBuffer = await audioRes.arrayBuffer();
-          audioBase64 = Buffer.from(audioBuffer).toString('base64');
-        }
-      } catch(e) { console.error('ElevenLabs error:', e); }
-    }
-
-    return res.status(200).json({ reply, audio: audioBase64 });
+    return res.status(200).json({ reply });
 
   } catch (err) {
     console.error('Handler error:', err);
-    return res.status(500).json({ reply: "Erreur serveur inattendue." });
+    return res.status(500).json({ reply: "Erreur serveur." });
   }
 }
