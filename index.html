@@ -249,7 +249,12 @@ async function sendMessage() {
       body: JSON.stringify({ messages: history, session_id: SESSION_ID })
     });
     const data = await res.json();
-    const reply = data.reply || "Je suis là.";
+    let reply = data.reply || "Je suis là.";
+const bgMatch = reply.match(/\[BGCOLOR:(#[a-fA-F0-9]{3,6})\]/);
+if (bgMatch) {
+  document.body.style.background = bgMatch[1];
+  reply = reply.replace(bgMatch[0], '').trim();
+}
     typingEl.classList.remove('active');
     addMessage('assistant', reply);
     history.push({ role: 'assistant', content: reply });
