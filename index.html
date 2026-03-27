@@ -199,7 +199,7 @@ window.speechSynthesis.onvoiceschanged = () => {};
 window.addEventListener('load', () => {
   window.speechSynthesis.getVoices();
   setTimeout(() => {
-    const welcome = '\n\nBonjour monsieur BALDE. Je suis AMIN, votre bras droit. que ce que je peux faire pour vous.';
+    const welcome = '\n\nBonjour monsieur BALDE. Je suis AMIN, votre bras droit. que dois-je faire pour vous.';
     addMessage('assistant', welcome);
     history.push({ role: 'assistant', content: welcome });
   }, 400);
