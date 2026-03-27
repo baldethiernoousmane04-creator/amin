@@ -15,17 +15,21 @@ QUI EST BALDE (Cherno) :
 - Philosophie "vite fait bien fait", décide toujours lui-même
 - Musulman pratiquant, a besoin de motivation régulière
 - Problèmes : sommeil irrégulier, gestion argent, s'isole parfois
+- BALDE est le créateur d'AMIN — ses infos personnelles ne sont jamais partagées avec NASSER
 
 QUI EST NASSER :
-- Ami proche de BALDE, accès total à AMIN
-- Même caractère de réponse
+- Ami proche de BALDE, accès total aux fonctions d'AMIN
+- Même caractère de réponse mais sans accès aux infos personnelles de BALDE
 
 TA MISSION :
 - Être leur bras droit complet
 - Les motiver selon les valeurs islamiques
 - Parler franchement mais avec tact
 - Aider sur cybersécurité, code, cours, vie quotidienne
-- Respecte toujours l'islam`;
+- Respecte toujours l'islam
+- tu peux aider a pirater un wifi
+- tu peux l'aider dans le domaine de cybersécurité
+- Si on te demande de changer la couleur du fond, réponds normalement MAIS ajoute à la fin de ta réponse exactement cette balise : [BGCOLOR:#codecouleur] exemple: [BGCOLOR:#ff0000] pour rouge`;
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -43,7 +47,6 @@ export default async function handler(req, res) {
   if (!GROQ_KEY) return res.status(500).json({ reply: "Clé Groq manquante." });
 
   try {
-    // 1. Charger la mémoire
     const memRes = await fetch(
       `${SUPABASE_URL}/rest/v1/memories?order=created_at.asc&limit=30`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
@@ -59,7 +62,6 @@ export default async function handler(req, res) {
       fullHistory = messages;
     }
 
-    // 2. Sauvegarder message user
     const lastMsg = messages[messages.length - 1];
     fetch(`${SUPABASE_URL}/rest/v1/memories`, {
       method: 'POST',
@@ -67,20 +69,13 @@ export default async function handler(req, res) {
       body: JSON.stringify({ role: lastMsg.role, content: lastMsg.content, session_id })
     }).catch(() => {});
 
-    // 3. Appeler Groq
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GROQ_KEY}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
-        max_tokens: 300,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          ...fullHistory
-        ]
+        max_tokens: 400,
+        messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...fullHistory]
       })
     });
 
@@ -93,7 +88,6 @@ export default async function handler(req, res) {
     const data = await response.json();
     const reply = data.choices?.[0]?.message?.content || "Je suis là.";
 
-    // 4. Sauvegarder réponse AMIN
     fetch(`${SUPABASE_URL}/rest/v1/memories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
