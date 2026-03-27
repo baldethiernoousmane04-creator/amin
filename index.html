@@ -227,9 +227,16 @@ inputEl.addEventListener('keydown', function(e) {
 
 window.addEventListener('load', () => {
   setTimeout(() => {
-    const welcome = 'Bismillah. As-salamu alaykum Cherno. Je suis AMIN, ton bras droit. Dis-moi ce qui est sur ta tête.';
-    addMessage('assistant', welcome);
-    history.push({ role: 'assistant', content: welcome });
+   const welcomes = [
+  'Yo Cherno. Je suis là. Dis-moi.',
+  'AMIN connecté. Quoi de neuf ?',
+  'Présent. C\'est quoi le programme aujourd\'hui ?',
+  'Je t\'écoute Cherno. Lance-toi.',
+  'Ici AMIN. T\'as besoin de quoi ?',
+  'Connecté. Qu\'est-ce qu\'on fait ?',
+  'Prêt quand tu l\'es. Parle-moi.',
+];
+const welcome = welcomes[Math.floor(Math.random() * welcomes.length)];
   }, 400);
 });
 </script>
