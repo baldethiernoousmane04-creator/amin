@@ -83,7 +83,6 @@ let history = [];
 let isLoading = false;
 let recognition = null;
 
-// Speech Recognition
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
@@ -111,19 +110,39 @@ function toggleMic() {
   }
 }
 
+function cleanText(text) {
+  return text
+    .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
+    .replace(/[\u{2600}-\u{27BF}]/gu, '')
+    .replace(/\*\*/g, '')
+    .replace(/\*/g, '')
+    .replace(/#{1,6}\s/g, '')
+    .trim();
+}
+
+function speakText(text) {
+  window.speechSynthesis.cancel();
+  const clean = cleanText(text);
+  const utter = new SpeechSynthesisUtterance(clean);
+  utter.lang = 'fr-FR';
+  utter.rate = 0.95;
+  utter.pitch = 0.85;
+  const voices = window.speechSynthesis.getVoices();
+  const frVoice = voices.find(v => v.lang === 'fr-FR' && v.name.toLowerCase().includes('thomas')) ||
+                  voices.find(v => v.lang === 'fr-FR' && v.name.toLowerCase().includes('nicolas')) ||
+                  voices.find(v => v.lang === 'fr-FR') ||
+                  voices.find(v => v.lang.startsWith('fr'));
+  if (frVoice) utter.voice = frVoice;
+  window.speechSynthesis.speak(utter);
+}
+
 function playAudio(base64) {
   try {
     const audio = new Audio('data:audio/mp3;base64,' + base64);
     audio.play();
-  } catch(e) { console.error('Audio error:', e); }
+  } catch(e) { speakText(''); }
 }
- function speakText(text) {
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = 'fr-FR';
-  utter.rate = 1;
-  utter.pitch = 1;
-  window.speechSynthesis.speak(utter);
-}
+
 function addMessage(role, text) {
   const div = document.createElement('div');
   div.className = 'msg ' + (role === 'assistant' ? 'amin' : 'user');
@@ -157,7 +176,7 @@ async function sendMessage() {
     typingEl.classList.remove('active');
     addMessage('assistant', reply);
     history.push({ role: 'assistant', content: reply });
-   if (data.audio) playAudio(data.audio);
+    if (data.audio) playAudio(data.audio);
     else speakText(reply);
   } catch (err) {
     typingEl.classList.remove('active');
@@ -175,9 +194,12 @@ inputEl.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
 
+window.speechSynthesis.onvoiceschanged = () => {};
+
 window.addEventListener('load', () => {
+  window.speechSynthesis.getVoices();
   setTimeout(() => {
-    const welcome = 'Bismillah 🤲\n\nAs-salamu alaykum Cherno. Je suis AMIN — ton bras droit.\n\nDis-moi ce qui est sur ta tête.';
+    const welcome = 'Bismillah\n\nAs-salamu alaykum Cherno. Je suis AMIN, ton bras droit. Dis-moi ce qui est sur ta tête.';
     addMessage('assistant', welcome);
     history.push({ role: 'assistant', content: welcome });
   }, 400);
