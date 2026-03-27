@@ -174,9 +174,9 @@ function speakText(text) {
   utter.volume = 1;
   const voice = getMaleVoice();
   if (voice) utter.voice = voice;
-  utter.onstart = () => { isSpeaking = true; stopBtn.classList.add('active'); };
-  utter.onend = () => { isSpeaking = false; stopBtn.classList.remove('active'); };
-  utter.onerror = () => { isSpeaking = false; stopBtn.classList.remove('active'); };
+ utter.onstart = () => { isSpeaking = true; stopBtn.classList.add('active'); document.getElementById('voiceIndicator').classList.add('active'); };
+utter.onend = () => { isSpeaking = false; stopBtn.classList.remove('active'); document.getElementById('voiceIndicator').classList.remove('active'); };
+utter.onerror = () => { isSpeaking = false; stopBtn.classList.remove('active'); document.getElementById('voiceIndicator').classList.remove('active'); };
   window.speechSynthesis.speak(utter);
 }
 
