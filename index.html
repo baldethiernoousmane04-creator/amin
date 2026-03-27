@@ -13,11 +13,14 @@
   :root { --bg: #000; --surface: #111; --border: #1f1f1f; --text: #fff; --text-dim: #444; }
   html, body { height: 100%; height: 100dvh; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; }
   .app { display: flex; flex-direction: column; height: 100dvh; }
-  .header { padding: 16px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .header { padding: 12px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
   .avatar { width: 34px; height: 34px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #000; flex-shrink: 0; }
   .header-text h1 { font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: 1px; }
   .header-text p { font-size: 11px; color: #444; }
-  .stop-btn { margin-left: auto; background: transparent; border: 1px solid #333; border-radius: 8px; color: #666; font-size: 11px; padding: 4px 10px; cursor: pointer; display: none; }
+  .header-right { margin-left: auto; text-align: right; }
+  .clock { font-size: 15px; font-weight: 600; color: #fff; letter-spacing: 1px; }
+  .weather { font-size: 11px; color: #666; margin-top: 2px; }
+  .stop-btn { background: transparent; border: 1px solid #333; border-radius: 8px; color: #666; font-size: 11px; padding: 4px 10px; cursor: pointer; display: none; margin-top: 4px; }
   .stop-btn.active { display: block; color: #fff; border-color: #555; }
   .messages { flex: 1; overflow-y: auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 10px; -webkit-overflow-scrolling: touch; }
   .messages::-webkit-scrollbar { display: none; }
@@ -57,7 +60,11 @@
       <h1>AMIN</h1>
       <p>En ligne</p>
     </div>
-    <button class="stop-btn" id="stopBtn" onclick="stopSpeaking()">⏹ Stop</button>
+    <div class="header-right">
+      <div class="clock" id="clock">--:--:--</div>
+      <div class="weather" id="weather">Dakar --°C</div>
+      <button class="stop-btn" id="stopBtn" onclick="stopSpeaking()">⏹ Stop</button>
+    </div>
   </div>
   <div class="messages" id="messages"></div>
   <div class="typing" id="typing">
@@ -87,24 +94,43 @@ let isLoading = false;
 let recognition = null;
 let isSpeaking = false;
 
-// Charger les voix
+// Horloge
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const s = String(now.getSeconds()).padStart(2, '0');
+  document.getElementById('clock').textContent = h + ':' + m + ':' + s;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Météo Dakar
+async function loadWeather() {
+  try {
+    const res = await fetch('/api/weather');
+    const data = await res.json();
+    if (data.temp) {
+      document.getElementById('weather').textContent = 'Dakar ' + Math.round(data.temp) + '°C ' + data.desc;
+    }
+  } catch(e) {
+    document.getElementById('weather').textContent = 'Dakar --°C';
+  }
+}
+loadWeather();
+setInterval(loadWeather, 600000);
+
+// Voix
 window.speechSynthesis.getVoices();
 window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 
 function getMaleVoice() {
   const voices = window.speechSynthesis.getVoices();
   const maleNames = ['thomas', 'paul', 'nicolas', 'guillaume', 'jean', 'pierre', 'henri', 'claude', 'luca', 'reed', 'aaron', 'arthur'];
-  const femaleNames = ['amelie', 'camille', 'marie', 'lucie', 'alice', 'julie', 'victoria', 'sophie', 'emma', 'léa', 'lea'];
-  
-  // Chercher voix masculine française explicite
+  const femaleNames = ['amelie', 'camille', 'marie', 'lucie', 'alice', 'julie', 'victoria', 'sophie', 'emma', 'lea'];
   let voice = voices.find(v => v.lang.startsWith('fr') && maleNames.some(n => v.name.toLowerCase().includes(n)));
-  
-  // Sinon prendre une voix française qui n'est pas féminine
   if (!voice) voice = voices.find(v => v.lang.startsWith('fr') && !femaleNames.some(n => v.name.toLowerCase().includes(n)));
-  
-  // Sinon n'importe quelle voix française
   if (!voice) voice = voices.find(v => v.lang.startsWith('fr'));
-  
   return voice;
 }
 
@@ -199,16 +225,11 @@ async function sendMessage() {
       body: JSON.stringify({ messages: history, session_id: SESSION_ID })
     });
     const data = await res.json();
-    const reply = data.reply || "Je suis là Cherno.";
+    const reply = data.reply || "Je suis là.";
     typingEl.classList.remove('active');
     addMessage('assistant', reply);
     history.push({ role: 'assistant', content: reply });
-    if (data.audio) {
-      const audio = new Audio('data:audio/mp3;base64,' + data.audio);
-      audio.play();
-    } else {
-      speakText(reply);
-    }
+    speakText(reply);
   } catch (err) {
     typingEl.classList.remove('active');
     addMessage('assistant', "Problème de connexion. Réessaie.");
@@ -224,22 +245,24 @@ inputEl.addEventListener('input', function() {
 inputEl.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
+
 window.addEventListener('load', () => {
+  window.speechSynthesis.getVoices();
   setTimeout(() => {
     const welcomes = [
-      'Yo Cherno. Je suis là. Dis-moi.',
+      'Yo. Je suis là. Dis-moi.',
       'AMIN connecté. Quoi de neuf ?',
-      'Présent. C\'est quoi le programme aujourd\'hui ?',
-      'Je t\'écoute Cherno. Lance-toi.',
-      'Ici AMIN. T\'as besoin de quoi ?',
+      'Présent. C\'est quoi le programme ?',
+      'Je t\'écoute. Lance-toi.',
       'Connecté. Qu\'est-ce qu\'on fait ?',
-      'Prêt quand tu l\'es. Parle-moi.',
+      'Prêt. Parle-moi.',
     ];
     const welcome = welcomes[Math.floor(Math.random() * welcomes.length)];
     addMessage('assistant', welcome);
     history.push({ role: 'assistant', content: welcome });
+    speakText(welcome);
   }, 400);
 });
- </script>
+</script>
 </body>
 </html>
