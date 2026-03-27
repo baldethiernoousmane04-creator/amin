@@ -11,10 +11,10 @@
  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  :root { --bg: #000; --surface: #111; --border: #1f1f1f; --text: #fff; --text-dim: #444; }
-  html, body { height: 100%; height: 100dvh; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; }
+  :root { --bg: rgba(0,0,0,0.85); --surface: rgba(255,255,255,0.05); --border: rgba(255,255,255,0.08); --text: #fff; --text-dim: #555; }
+ html, body { height: 100%; height: 100dvh; background: linear-gradient(135deg, #0a0a0a 0%, #111 50%, #0d0d0d 100%); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; }
   .app { display: flex; flex-direction: column; height: 100dvh; }
-  .header { padding: 12px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+ .header { padding: 12px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; backdrop-filter: blur(20px); background: rgba(255,255,255,0.03); }
   .avatar { width: 52px; height: 52px; border-radius: 12px; background: #000; border: 1px solid #333; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; letter-spacing: 2px; flex-shrink: 0; }
  .header-text h1 { font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: 1px; }
   .header-text p { font-size: 11px; color: #444; }
