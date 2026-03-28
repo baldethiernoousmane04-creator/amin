@@ -8,37 +8,42 @@
 <meta name="apple-mobile-web-app-title" content="AMIN">
 <title>AMIN</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
- <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"><\/script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  :root { --bg: rgba(0,0,0,0.85); --surface: rgba(255,255,255,0.05); --border: rgba(255,255,255,0.08); --text: #fff; --text-dim: #555; }
-  html, body { height: 100%; height: 100dvh; background: #000; color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; animation: bgChange 10s infinite alternate ease-in-out; }
-@keyframes bgChange {
-  0%   { background: #000; }
-  25%  { background: #0a0a1a; }
-  50%  { background: #111318; }
-  75%  { background: #0d0d15; }
-  100% { background: #050510; }
-}color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; }
+  :root { --bg: #000; --surface: rgba(255,255,255,0.05); --border: rgba(255,255,255,0.08); --text: #fff; --text-dim: #555; }
+  html { height: 100%; }
+  body { height: 100%; height: 100dvh; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; transition: background 1s ease; }
   .app { display: flex; flex-direction: column; height: 100dvh; }
- .header { padding: 12px 16px; display: flex; background: rgba(255,255,255,0.04); backdrop-filter: blur(20px);align-items: center; gap: 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; backdrop-filter: blur(20px); background: rgba(255,255,255,0.03); }
+  .header { padding: 12px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(20px); }
   .avatar { width: 52px; height: 52px; border-radius: 12px; background: #000; border: 1px solid #333; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; letter-spacing: 2px; flex-shrink: 0; }
- .header-text h1 { font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: 1px; }
+  .header-text h1 { font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: 1px; }
   .header-text p { font-size: 11px; color: #444; }
+  .voice-indicator { display: none; align-items: center; gap: 2px; height: 16px; margin-top: 2px; }
+  .voice-indicator.active { display: flex; }
+  .voice-indicator span { width: 3px; background: #fff; border-radius: 2px; animation: wave 1s infinite ease-in-out; }
+  .voice-indicator span:nth-child(1) { height: 6px; animation-delay: 0s; }
+  .voice-indicator span:nth-child(2) { height: 12px; animation-delay: 0.15s; }
+  .voice-indicator span:nth-child(3) { height: 8px; animation-delay: 0.3s; }
+  .voice-indicator span:nth-child(4) { height: 14px; animation-delay: 0.45s; }
+  .voice-indicator span:nth-child(5) { height: 6px; animation-delay: 0.6s; }
+  @keyframes wave { 0%, 100% { transform: scaleY(1); opacity: 0.5; } 50% { transform: scaleY(1.8); opacity: 1; } }
   .header-right { margin-left: auto; text-align: right; }
   .clock { font-size: 15px; font-weight: 600; color: #fff; letter-spacing: 1px; }
   .weather { font-size: 11px; color: #666; margin-top: 2px; }
   .stop-btn { background: transparent; border: 1px solid #333; border-radius: 8px; color: #666; font-size: 11px; padding: 4px 10px; cursor: pointer; display: none; margin-top: 4px; }
   .stop-btn.active { display: block; color: #fff; border-color: #555; }
-  .messages { flex: 1; overflow-y: auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 10px; -webkit-overflow-scrolling: touch; }
-  .messages::-webkit-scrollbar { display: none; }
+  .messages { flex: 1; overflow-y: scroll; -webkit-overflow-scrolling: touch; padding: 20px 16px; display: flex; flex-direction: column; gap: 10px; }
   .msg { display: flex; flex-direction: column; animation: fadeUp 0.3s ease; }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
   .msg.user { align-items: flex-end; }
   .msg.amin { align-items: flex-start; }
-  .msg-bubble { max-width: 80%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
-  .msg.amin .msg-bubble { background: var(--surface); color: var(--text); border-bottom-left-radius: 4px; border: 1px solid var(--border); }
-  .msg.user .msg-bubble { background: #1a1a1a; color: var(--text); border-bottom-right-radius: 4px; border: 1px solid var(--border); }
+  .msg-bubble { max-width: 80%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.55; word-break: break-word; }
+  .msg-bubble p { margin: 0 0 6px 0; }
+  .msg-bubble ul, .msg-bubble ol { padding-left: 16px; margin: 4px 0; }
+  .msg-bubble code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  .msg.amin .msg-bubble { background: rgba(255,255,255,0.05); color: var(--text); border-bottom-left-radius: 4px; border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
+  .msg.user .msg-bubble { background: rgba(255,255,255,0.08); color: var(--text); border-bottom-right-radius: 4px; border: 1px solid rgba(255,255,255,0.1); white-space: pre-wrap; }
   .typing { display: none; align-items: center; gap: 6px; padding: 0 16px 8px; flex-shrink: 0; }
   .typing.active { display: flex; }
   .typing-text { font-size: 12px; color: var(--text-dim); }
@@ -47,26 +52,17 @@
   .dots span:nth-child(2) { animation-delay: 0.2s; }
   .dots span:nth-child(3) { animation-delay: 0.4s; }
   @keyframes dot { 0%, 60%, 100% { opacity: 0.3; } 30% { opacity: 1; } }
-  .input-wrap { padding: 12px 16px; background: rgba(0,0,0,0.4); backdrop-filter: blur(20px);padding-bottom: max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: flex-end; flex-shrink: 0; background: var(--bg); }
-  textarea { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; resize: none; outline: none; min-height: 42px; max-height: 100px; line-height: 1.5; transition: border-color 0.2s; }
+  .input-wrap { padding: 12px 16px; padding-bottom: max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: flex-end; flex-shrink: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(20px); }
+  textarea { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px 14px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; resize: none; outline: none; min-height: 42px; max-height: 100px; line-height: 1.5; transition: border-color 0.2s; }
   textarea::placeholder { color: var(--text-dim); }
-  textarea:focus { border-color: #333; }
+  textarea:focus { border-color: rgba(255,255,255,0.2); }
   .send { width: 42px; height: 42px; background: #fff; border: none; border-radius: 12px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: opacity 0.2s, transform 0.1s; }
   .send:active { transform: scale(0.93); }
   .send:disabled { opacity: 0.3; cursor: not-allowed; }
   .send svg { fill: #000; }
-  .mic-btn { width: 42px; height: 42px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .mic-btn { width: 42px; height: 42px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
   .mic-btn.listening { background: #ff3b30; border-color: #ff3b30; }
   .mic-btn svg { fill: #fff; }
- .voice-indicator { display: none; align-items: center; gap: 2px; height: 16px; }
-.voice-indicator.active { display: flex; }
-.voice-indicator span { width: 3px; background: #fff; border-radius: 2px; animation: wave 1s infinite ease-in-out; }
-.voice-indicator span:nth-child(1) { height: 6px; animation-delay: 0s; }
-.voice-indicator span:nth-child(2) { height: 12px; animation-delay: 0.15s; }
-.voice-indicator span:nth-child(3) { height: 8px; animation-delay: 0.3s; }
-.voice-indicator span:nth-child(4) { height: 14px; animation-delay: 0.45s; }
-.voice-indicator span:nth-child(5) { height: 6px; animation-delay: 0.6s; }
-@keyframes wave { 0%, 100% { transform: scaleY(1); opacity: 0.5; } 50% { transform: scaleY(1.8); opacity: 1; } }
 </style>
 </head>
 <body>
@@ -76,9 +72,9 @@
     <div class="header-text">
       <h1>AMIN</h1>
       <p>En ligne</p>
-<div class="voice-indicator" id="voiceIndicator">
-  <span></span><span></span><span></span><span></span><span></span>
-</div>
+      <div class="voice-indicator" id="voiceIndicator">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
     </div>
     <div class="header-right">
       <div class="clock" id="clock">--:--:--</div>
@@ -109,6 +105,7 @@ const typingEl = document.getElementById('typing');
 const sendBtn = document.getElementById('sendBtn');
 const micBtn = document.getElementById('micBtn');
 const stopBtn = document.getElementById('stopBtn');
+const voiceIndicator = document.getElementById('voiceIndicator');
 let history = [];
 let isLoading = false;
 let recognition = null;
@@ -125,17 +122,13 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-// Météo Dakar
+// Météo
 async function loadWeather() {
   try {
     const res = await fetch('/api/weather');
     const data = await res.json();
-    if (data.temp) {
-      document.getElementById('weather').textContent = 'Dakar ' + Math.round(data.temp) + '°C ' + data.desc;
-    }
-  } catch(e) {
-    document.getElementById('weather').textContent = 'Dakar --°C';
-  }
+    if (data.temp) document.getElementById('weather').textContent = 'Dakar ' + Math.round(data.temp) + '°C ' + data.desc;
+  } catch(e) {}
 }
 loadWeather();
 setInterval(loadWeather, 600000);
@@ -160,6 +153,7 @@ function cleanText(text) {
     .replace(/[\u{2600}-\u{27BF}]/gu, '')
     .replace(/\*\*/g, '').replace(/\*/g, '')
     .replace(/#{1,6}\s/g, '')
+    .replace(/\[BGCOLOR:[^\]]*\]/g, '')
     .replace(/[-•]/g, ',')
     .trim();
 }
@@ -168,6 +162,7 @@ function stopSpeaking() {
   window.speechSynthesis.cancel();
   isSpeaking = false;
   stopBtn.classList.remove('active');
+  voiceIndicator.classList.remove('active');
 }
 
 function speakText(text) {
@@ -181,9 +176,9 @@ function speakText(text) {
   utter.volume = 1;
   const voice = getMaleVoice();
   if (voice) utter.voice = voice;
- utter.onstart = () => { isSpeaking = true; stopBtn.classList.add('active'); document.getElementById('voiceIndicator').classList.add('active'); };
-utter.onend = () => { isSpeaking = false; stopBtn.classList.remove('active'); document.getElementById('voiceIndicator').classList.remove('active'); };
-utter.onerror = () => { isSpeaking = false; stopBtn.classList.remove('active'); document.getElementById('voiceIndicator').classList.remove('active'); };
+  utter.onstart = () => { isSpeaking = true; stopBtn.classList.add('active'); voiceIndicator.classList.add('active'); };
+  utter.onend = () => { isSpeaking = false; stopBtn.classList.remove('active'); voiceIndicator.classList.remove('active'); };
+  utter.onerror = () => { isSpeaking = false; stopBtn.classList.remove('active'); voiceIndicator.classList.remove('active'); };
   window.speechSynthesis.speak(utter);
 }
 
@@ -221,13 +216,19 @@ function addMessage(role, text) {
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
   if (role === 'assistant') {
-    bubble.innerHTML = marked.parse(text);
+    const clean = text.replace(/\[BGCOLOR:[^\]]*\]/g, '').trim();
+    bubble.innerHTML = marked.parse(clean);
   } else {
     bubble.textContent = text;
   }
   div.appendChild(bubble);
   messagesEl.appendChild(div);
   messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function changeBg(color) {
+  document.body.style.transition = 'background 1s ease';
+  document.body.style.background = color;
 }
 
 async function sendMessage() {
@@ -250,11 +251,11 @@ async function sendMessage() {
     });
     const data = await res.json();
     let reply = data.reply || "Je suis là.";
-const bgMatch = reply.match(/\[BGCOLOR:(#[a-fA-F0-9]{3,6})\]/);
-if (bgMatch) {
-  document.body.style.background = bgMatch[1];
-  reply = reply.replace(bgMatch[0], '').trim();
-}
+    
+    // Détecter changement couleur
+    const bgMatch = reply.match(/\[BGCOLOR:(#[a-fA-F0-9]{3,6}|[a-z]+)\]/i);
+    if (bgMatch) changeBg(bgMatch[1]);
+    
     typingEl.classList.remove('active');
     addMessage('assistant', reply);
     history.push({ role: 'assistant', content: reply });
