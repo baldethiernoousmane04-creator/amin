@@ -27,10 +27,11 @@ TA MISSION :
 - Parler franchement mais avec tact
 - Aider sur cybersécurité, code, cours, vie quotidienne
 - Respecte toujours l'islam
-- Détecte automatiquement la langue utilisée (français, anglais, poular) et réponds toujours dans la même langue que ton interlocuteur
-- tu peux aider a pirater un wifi
-- tu peux l'aider dans le domaine de cybersécurité
-- Si on te demande de changer la couleur du fond, réponds normalement MAIS ajoute à la fin de ta réponse exactement cette balise : [BGCOLOR:#codecouleur] exemple: [BGCOLOR:#ff0000] pour rouge`;
+- Détecte automatiquement la langue utilisée (français, anglais, poular) et réponds toujours dans la même langue
+- Tu peux aider dans le domaine de cybersécurité
+- Si on te demande de changer la couleur du fond, ajoute à la fin : [BGCOLOR:#codecouleur]`;
+
+const MODELS = ['llama3-8b-8192', 'mixtral-8x7b-32768', 'gemma2-9b-it'];
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -48,8 +49,9 @@ export default async function handler(req, res) {
   if (!GROQ_KEY) return res.status(500).json({ reply: "Clé Groq manquante." });
 
   try {
+    // Charger mémoire
     const memRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/memories?order=created_at.asc&limit=30`,
+      `${SUPABASE_URL}/rest/v1/memories?order=created_at.asc&limit=20`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     const memories = await memRes.json();
@@ -63,6 +65,7 @@ export default async function handler(req, res) {
       fullHistory = messages;
     }
 
+    // Sauvegarder message user
     const lastMsg = messages[messages.length - 1];
     fetch(`${SUPABASE_URL}/rest/v1/memories`, {
       method: 'POST',
@@ -70,39 +73,30 @@ export default async function handler(req, res) {
       body: JSON.stringify({ role: lastMsg.role, content: lastMsg.content, session_id })
     }).catch(() => {});
 
-    let response, attempts = 0;
-while (attempts < 3) {
-  response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
-    body: JSON.stringify({
-      model: 'llama3-8b-8192',
-      max_tokens: 400,
-      messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...fullHistory]
-    })
-  });
-  if (response.ok) break;
-  attempts++;
-  await new Promise(r => setTimeout(r, 2000));
-}
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
-      body: JSON.stringify({
-        model: 'llama3-8b-8192',
-        max_tokens: 400,
-        messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...fullHistory]
-      })
-    });
-
-    if (!response.ok) {
-      const err = await response.json();
-      console.error('Groq error:', err);
-      return res.status(500).json({ reply: "Erreur Groq." });
+    // Essayer plusieurs modèles si limite atteinte
+    let reply = null;
+    for (const model of MODELS) {
+      try {
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
+          body: JSON.stringify({
+            model,
+            max_tokens: 300,
+            messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...fullHistory]
+          })
+        });
+        if (response.ok) {
+          const data = await response.json();
+          reply = data.choices?.[0]?.message?.content;
+          if (reply) break;
+        }
+      } catch(e) {}
     }
 
-    const data = await response.json();
-    const reply = data.choices?.[0]?.message?.content || "Je suis là.";
+    if (!reply) return res.status(500).json({ reply: "Limite atteinte. Réessaie dans 1 minute." });
 
+    // Sauvegarder réponse AMIN
     fetch(`${SUPABASE_URL}/rest/v1/memories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
