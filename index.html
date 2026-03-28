@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="AMIN">
 <title>AMIN</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"><\/script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   :root { --bg: #000; --surface: rgba(255,255,255,0.05); --border: rgba(255,255,255,0.08); --text: #fff; --text-dim: #555; }
@@ -110,6 +110,7 @@ let history = [];
 let isLoading = false;
 let recognition = null;
 let isSpeaking = false;
+let writeMode = false;
 
 // Horloge
 function updateClock() {
@@ -229,8 +230,6 @@ function addMessage(role, text) {
 function changeBg(color) {
   document.body.style.transition = 'background 1s ease, color 1s ease';
   document.body.style.background = color;
-  
-  // Calculer si la couleur est claire ou foncée
   const temp = document.createElement('div');
   temp.style.color = color;
   document.body.appendChild(temp);
@@ -265,15 +264,23 @@ async function sendMessage() {
     });
     const data = await res.json();
     let reply = data.reply || "Je suis là.";
-    
+
     // Détecter changement couleur
     const bgMatch = reply.match(/\[BGCOLOR:(#[a-fA-F0-9]{3,6}|[a-z]+)\]/i);
     if (bgMatch) changeBg(bgMatch[1]);
-    
+
+    // Détecter si l'utilisateur veut du texte
+    const wantWrite = /écri|ecri|par écrit|en texte|affiche|montre/i.test(text);
+    writeMode = wantWrite;
+
     typingEl.classList.remove('active');
-    addMessage('assistant', reply);
+    if (writeMode) {
+      addMessage('assistant', reply);
+    }
     history.push({ role: 'assistant', content: reply });
     speakText(reply);
+    writeMode = false;
+
   } catch (err) {
     typingEl.classList.remove('active');
     addMessage('assistant', "Problème de connexion. Réessaie.");
