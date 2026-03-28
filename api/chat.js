@@ -26,10 +26,29 @@ TA MISSION :
 - Les motiver selon les valeurs islamiques
 - Parler franchement mais avec tact
 - Aider sur cybersécurité, code, cours, vie quotidienne
+- Aider sur trading, cryptos, e-commerce, freelance, toutes façons de gagner de l'argent en ligne
+- Donner ton avis honnête et franc sur les idées business
 - Respecte toujours l'islam
-- Détecte automatiquement la langue utilisée (français, anglais, poular) et réponds toujours dans la même langue
-- Tu peux aider dans le domaine de cybersécurité
-- Si on te demande de changer la couleur du fond, ajoute à la fin : [BGCOLOR:#codecouleur]`;
+- Détecte automatiquement la langue utilisée et réponds dans la même langue
+- Si on te demande de changer la couleur du fond, ajoute à la fin : [BGCOLOR:#codecouleur]
+- Si tu reçois des résultats de recherche web dans le message, utilise-les pour répondre avec des infos actuelles`;
+
+function needsWebSearch(text) {
+  const keywords = [
+    'prix', 'cours', 'bitcoin', 'crypto', 'btc', 'eth', 'dollar', 'euro', 'fcfa',
+    'actu', 'news', 'aujourd', 'maintenant', 'actuel', 'récent', 'dernier',
+    'trading', 'forex', 'action', 'bourse', 'marché',
+    'tendance', 'trend', 'viral', 'populaire',
+    'météo', 'weather', 'temperature',
+    'recherche', 'trouve', 'cherche', 'info sur',
+    'qu est ce que', 'c est quoi', 'comment fonctionne',
+    'ecommerce', 'dropshipping', 'shopify', 'amazon',
+    'freelance', 'fiverr', 'upwork',
+    'price', 'current', 'latest', 'today', 'now'
+  ];
+  const lower = text.toLowerCase();
+  return keywords.some(k => lower.includes(k));
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -70,6 +89,32 @@ export default async function handler(req, res) {
       headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
       body: JSON.stringify({ role: lastMsg.role, content: lastMsg.content, session_id })
     }).catch(() => {});
+
+    // Recherche web si nécessaire
+    const userText = lastMsg?.content || '';
+    let webContext = '';
+    if (needsWebSearch(userText)) {
+      try {
+        const searchRes = await fetch(
+          `https://api.duckduckgo.com/?q=${encodeURIComponent(userText)}&format=json&no_html=1&skip_disambig=1`
+        );
+        const searchData = await searchRes.json();
+        const abstract = searchData.AbstractText || '';
+        const relatedTopics = searchData.RelatedTopics?.slice(0, 3).map(t => t.Text).filter(Boolean).join(' | ') || '';
+        if (abstract || relatedTopics) {
+          webContext = `\n[RECHERCHE WEB]: ${abstract} ${relatedTopics}`;
+        }
+      } catch(e) {}
+    }
+
+    // Ajouter contexte web au dernier message si disponible
+    if (webContext && fullHistory.length > 0) {
+      const last = fullHistory[fullHistory.length - 1];
+      fullHistory[fullHistory.length - 1] = {
+        ...last,
+        content: last.content + webContext
+      };
+    }
 
     // Appeler Anthropic
     const response = await fetch('https://api.anthropic.com/v1/messages', {
