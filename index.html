@@ -302,6 +302,32 @@ inputEl.addEventListener('keydown', function(e) {
 
 window.addEventListener('load', () => {
   window.speechSynthesis.getVoices();
+ // Mot de réveil AMIN
+function startWakeWord() {
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const wake = new SR();
+  wake.lang = 'fr-FR';
+  wake.continuous = true;
+  wake.interimResults = true;
+  wake.onresult = (e) => {
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const transcript = e.results[i][0].transcript.toLowerCase().trim();
+      if (transcript.includes('amin')) {
+        stopSpeaking();
+        setTimeout(() => {
+          if (!micBtn.classList.contains('listening')) {
+            recognition.start();
+            micBtn.classList.add('listening');
+          }
+        }, 300);
+      }
+    }
+  };
+  wake.onend = () => setTimeout(() => { try { wake.start(); } catch(e) {} }, 1000);
+  wake.onerror = () => setTimeout(() => { try { wake.start(); } catch(e) {} }, 2000);
+  try { wake.start(); } catch(e) {}
+}
   setTimeout(() => {
     const welcomes = [
       'Yo. Je suis là. Dis-moi.',
