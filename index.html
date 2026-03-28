@@ -227,8 +227,22 @@ function addMessage(role, text) {
 }
 
 function changeBg(color) {
-  document.body.style.transition = 'background 1s ease';
+  document.body.style.transition = 'background 1s ease, color 1s ease';
   document.body.style.background = color;
+  
+  // Calculer si la couleur est claire ou foncée
+  const temp = document.createElement('div');
+  temp.style.color = color;
+  document.body.appendChild(temp);
+  const rgb = getComputedStyle(temp).color;
+  document.body.removeChild(temp);
+  const match = rgb.match(/\d+/g);
+  if (match) {
+    const brightness = (parseInt(match[0]) * 299 + parseInt(match[1]) * 587 + parseInt(match[2]) * 114) / 1000;
+    const textColor = brightness > 128 ? '#000' : '#fff';
+    document.documentElement.style.setProperty('--text', textColor);
+    document.documentElement.style.setProperty('--text-dim', brightness > 128 ? '#444' : '#555');
+  }
 }
 
 async function sendMessage() {
