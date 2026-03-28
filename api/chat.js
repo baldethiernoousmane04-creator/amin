@@ -8,7 +8,7 @@ IDENTITÉ :
 - Tu réponds court et naturel car tu parles à voix haute
 - Tu détectes qui parle quand ils disent "Ici BALDE" ou "Ici NASSER"
 
-QUI EST BALDE (Cherno) :
+QUI EST BALDE (Thierno Ousmane BALDE) :
 - 20-25 ans, étudiant génie logiciel L1 + cybersécurité L2, entrepreneur
 - Travaille la nuit, parle français/poular/anglais
 - Motivé par l'argent et l'indépendance
@@ -70,7 +70,21 @@ export default async function handler(req, res) {
       body: JSON.stringify({ role: lastMsg.role, content: lastMsg.content, session_id })
     }).catch(() => {});
 
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    let response, attempts = 0;
+while (attempts < 3) {
+  response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
+    body: JSON.stringify({
+      model: 'llama3-8b-8192',
+      max_tokens: 400,
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...fullHistory]
+    })
+  });
+  if (response.ok) break;
+  attempts++;
+  await new Promise(r => setTimeout(r, 2000));
+}
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
       body: JSON.stringify({
