@@ -31,8 +31,6 @@ TA MISSION :
 - Tu peux aider dans le domaine de cybersécurité
 - Si on te demande de changer la couleur du fond, ajoute à la fin : [BGCOLOR:#codecouleur]`;
 
-const MODELS = ['llama3-8b-8192', 'mixtral-8x7b-32768', 'gemma2-9b-it'];
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -42,11 +40,11 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { messages, session_id } = req.body;
-  const GROQ_KEY = process.env.GROQ_KEY;
+  const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
-  if (!GROQ_KEY) return res.status(500).json({ reply: "Clé Groq manquante." });
+  if (!ANTHROPIC_KEY) return res.status(500).json({ reply: "Clé API manquante." });
 
   try {
     // Charger mémoire
@@ -73,28 +71,30 @@ export default async function handler(req, res) {
       body: JSON.stringify({ role: lastMsg.role, content: lastMsg.content, session_id })
     }).catch(() => {});
 
-    // Essayer plusieurs modèles si limite atteinte
-    let reply = null;
-    for (const model of MODELS) {
-      try {
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
-          body: JSON.stringify({
-            model,
-            max_tokens: 300,
-            messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...fullHistory]
-          })
-        });
-        if (response.ok) {
-          const data = await response.json();
-          reply = data.choices?.[0]?.message?.content;
-          if (reply) break;
-        }
-      } catch(e) {}
+    // Appeler Anthropic
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        system: SYSTEM_PROMPT,
+        messages: fullHistory
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      console.error('Anthropic error:', err);
+      return res.status(500).json({ reply: "Erreur API. Réessaie." });
     }
 
-    if (!reply) return res.status(500).json({ reply: "Limite atteinte. Réessaie dans 1 minute." });
+    const data = await response.json();
+    const reply = data.content?.[0]?.text || "Je suis là.";
 
     // Sauvegarder réponse AMIN
     fetch(`${SUPABASE_URL}/rest/v1/memories`, {
