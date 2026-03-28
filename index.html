@@ -197,9 +197,10 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   };
   recognition.onend = () => micBtn.classList.remove('listening');
   recognition.onerror = () => micBtn.classList.remove('listening');
-  recognition.onaudiostart } = () => {
+ recognition.onaudiostart = () => {
     if (isSpeaking) stopSpeaking();
   };
+}
 
 function toggleMic() {
   if (!recognition) return;
