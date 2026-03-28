@@ -74,7 +74,7 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'llama3-8b-8192',
         max_tokens: 400,
         messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...fullHistory]
       })
