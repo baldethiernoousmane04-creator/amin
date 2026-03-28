@@ -190,14 +190,16 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   recognition.lang = 'fr-FR';
   recognition.continuous = false;
   recognition.interimResults = false;
-  recognition.onresult = (e) => {
+ recognition.onresult = (e) => {
     inputEl.value = e.results[0][0].transcript;
     micBtn.classList.remove('listening');
     sendMessage();
   };
   recognition.onend = () => micBtn.classList.remove('listening');
   recognition.onerror = () => micBtn.classList.remove('listening');
-}
+  recognition.onaudiostart } = () => {
+    if (isSpeaking) stopSpeaking();
+  };
 
 function toggleMic() {
   if (!recognition) return;
