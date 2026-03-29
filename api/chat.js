@@ -1,4 +1,3 @@
-import fetch from 'node-fetch';
 
 const SYSTEM_PROMPT = `You are AMIN, the personal AI assistant and right-hand of BALDE and NASSER.
 
