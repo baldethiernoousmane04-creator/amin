@@ -30,8 +30,8 @@ TA MISSION :
 - Donner ton avis honnête et franc sur les idées business
 - Respecte toujours l'islam
 - Détecte automatiquement la langue utilisée et réponds dans la même langue
-- Si on te demande de changer la couleur du fond, ajoute à la fin : [BGCOLOR:#codecouleur]
-- Si tu reçois des résultats de recherche web dans le message, utilise-les pour répondre avec des infos actuelles`;
+- Si tu reçois des résultats de recherche web, utilise-les pour répondre avec des infos actuelles
+- Si on te demande de changer la couleur du fond, ajoute à la fin : [BGCOLOR:#codecouleur]`;
 
 function needsWebSearch(text) {
   const keywords = [
@@ -41,13 +41,34 @@ function needsWebSearch(text) {
     'tendance', 'trend', 'viral', 'populaire',
     'météo', 'weather', 'temperature',
     'recherche', 'trouve', 'cherche', 'info sur',
-    'qu est ce que', 'c est quoi', 'comment fonctionne',
     'ecommerce', 'dropshipping', 'shopify', 'amazon',
     'freelance', 'fiverr', 'upwork',
-    'price', 'current', 'latest', 'today', 'now'
+    'price', 'current', 'latest', 'today', 'now', 'what is'
   ];
   const lower = text.toLowerCase();
   return keywords.some(k => lower.includes(k));
+}
+
+async function braveSearch(query, apiKey) {
+  try {
+    const response = await fetch(
+      `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=3&search_lang=fr`,
+      {
+        headers: {
+          'Accept': 'application/json',
+          'Accept-Encoding': 'gzip',
+          'X-Subscription-Token': apiKey
+        }
+      }
+    );
+    if (!response.ok) return '';
+    const data = await response.json();
+    const results = data.web?.results?.slice(0, 3) || [];
+    if (results.length === 0) return '';
+    return results.map(r => `${r.title}: ${r.description}`).join(' | ');
+  } catch(e) {
+    return '';
+  }
 }
 
 export default async function handler(req, res) {
@@ -62,6 +83,7 @@ export default async function handler(req, res) {
   const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_KEY = process.env.SUPABASE_KEY;
+  const BRAVE_KEY = process.env.BRAVE_KEY;
 
   if (!ANTHROPIC_KEY) return res.status(500).json({ reply: "Clé API manquante." });
 
@@ -90,30 +112,17 @@ export default async function handler(req, res) {
       body: JSON.stringify({ role: lastMsg.role, content: lastMsg.content, session_id })
     }).catch(() => {});
 
-    // Recherche web si nécessaire
+    // Recherche Brave si nécessaire
     const userText = lastMsg?.content || '';
-    let webContext = '';
-    if (needsWebSearch(userText)) {
-      try {
-        const searchRes = await fetch(
-          `https://api.duckduckgo.com/?q=${encodeURIComponent(userText)}&format=json&no_html=1&skip_disambig=1`
-        );
-        const searchData = await searchRes.json();
-        const abstract = searchData.AbstractText || '';
-        const relatedTopics = searchData.RelatedTopics?.slice(0, 3).map(t => t.Text).filter(Boolean).join(' | ') || '';
-        if (abstract || relatedTopics) {
-          webContext = `\n[RECHERCHE WEB]: ${abstract} ${relatedTopics}`;
-        }
-      } catch(e) {}
-    }
-
-    // Ajouter contexte web au dernier message si disponible
-    if (webContext && fullHistory.length > 0) {
-      const last = fullHistory[fullHistory.length - 1];
-      fullHistory[fullHistory.length - 1] = {
-        ...last,
-        content: last.content + webContext
-      };
+    if (needsWebSearch(userText) && BRAVE_KEY) {
+      const webResults = await braveSearch(userText, BRAVE_KEY);
+      if (webResults && fullHistory.length > 0) {
+        const last = fullHistory[fullHistory.length - 1];
+        fullHistory[fullHistory.length - 1] = {
+          ...last,
+          content: last.content + `\n[RÉSULTATS WEB EN TEMPS RÉEL]: ${webResults}`
+        };
+      }
     }
 
     // Appeler Anthropic
