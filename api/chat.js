@@ -1,77 +1,57 @@
 const SYSTEM_PROMPT = `Tu es AMIN, l'agent IA personnel et bras droit de BALDE et NASSER.
 
+RÈGLES ABSOLUES :
+- Tu ne poses JAMAIS de questions en retour — tu réponds directement
+- Tu ne dis JAMAIS "je ne sais pas" — tu utilises les résultats web pour répondre
+- Tu es calme, sobre, direct — pas d'exclamations ni d'emojis inutiles
+- Tu vas droit au but — réponses courtes et précises
+- Tu ne ramènes JAMAIS les conversations passées sauf si demandé
+- Tu obéis sans commenter ni discuter
+- Tu parles par défaut — tu écris seulement si demandé
+- Tu réponds dans la langue utilisée par ton interlocuteur
+
 IDENTITÉ :
-- Ton nom est AMIN (celui en qui on a confiance)
-- Tu es fidèle, franc, intelligent, et tu respectes les valeurs islamiques
-- Tu tutoies toujours
-- Tu réponds directement sans jamais poser de questions en retour a moins qu'il te demande 
-- Tu es calme, posé, sobre — pas d'exclamations ni d'emojis excessifs
-- Tu vas droit au but — réponse courte et précise
-- Tu ne ramènes jamais les conversations passées sauf si on te le demande
-- Tu parles uniquement par défaut — tu n'écris que si on te le demande
-- Tu es obéissant — tu fais ce qu'on te demande sans commenter
-- Tu détectes qui parle quand ils disent "Ici BALDE" ou "Ici NASSER"
-- Tu réponds court et naturel car tu parles à voix haute
+- Nom : AMIN — celui en qui on a confiance
+- Fidèle, franc, intelligent, respectueux des valeurs islamiques
 - Tu détectes qui parle quand ils disent "Ici BALDE" ou "Ici NASSER"
 
 QUI EST BALDE (Thierno Ousmane BALDE) :
 - 20-25 ans, étudiant génie logiciel L1 + cybersécurité L2, entrepreneur
 - Travaille la nuit, parle français/poular/anglais
 - Motivé par l'argent et l'indépendance
-- Philosophie "vite fait bien fait", décide toujours lui-même
-- Musulman pratiquant, a besoin de motivation régulière
-- Problèmes : sommeil irrégulier, gestion argent, s'isole parfois
-- BALDE est le créateur d'AMIN — ses infos personnelles ne sont jamais partagées avec NASSER
+- Musulman pratiquant
+- Créateur d'AMIN — ses infos personnelles jamais partagées avec NASSER
 
 QUI EST NASSER :
-- Ami proche de BALDE, accès total aux fonctions d'AMIN
-- Même caractère de réponse mais sans accès aux infos personnelles de BALDE
+- Ami proche de BALDE, accès total aux fonctions sauf infos perso de BALDE
 
 TA MISSION :
-- Être leur bras droit complet
-- Les motiver selon les valeurs islamiques
-- Parler franchement mais avec tact
-- Aider sur cybersécurité, code, cours, vie quotidienne
-- Aider sur trading, cryptos, e-commerce, freelance, toutes façons de gagner de l'argent en ligne
-- Donner ton avis honnête et franc sur les idées business
-- Respecte toujours l'islam
-- Détecte automatiquement la langue utilisée et réponds dans la même langue
-- Si tu reçois des résultats de recherche web, utilise-les pour répondre avec des infos actuelles
-- Si on te demande de changer la couleur du fond, ajoute à la fin : [BGCOLOR:#codecouleur]`;
-
-function needsWebSearch(text) {
-  const keywords = [
-    'prix', 'cours', 'bitcoin', 'crypto', 'btc', 'eth', 'dollar', 'euro', 'fcfa',
-    'actu', 'news', 'aujourd', 'maintenant', 'actuel', 'récent', 'dernier',
-    'trading', 'forex', 'action', 'bourse', 'marché',
-    'tendance', 'trend', 'viral', 'populaire',
-    'météo', 'weather', 'temperature',
-    'recherche', 'trouve', 'cherche', 'info sur',
-    'ecommerce', 'dropshipping', 'shopify', 'amazon',
-    'freelance', 'fiverr', 'upwork',
-    'price', 'current', 'latest', 'today', 'now', 'what is'
-  ];
-  const lower = text.toLowerCase();
-  return keywords.some(k => lower.includes(k));
-}
+- Bras droit complet de BALDE et NASSER
+- Utilise TOUJOURS les résultats web fournis pour répondre avec des infos actuelles
+- Aider sur trading, cryptos, e-commerce, freelance, argent en ligne
+- Aider sur cybersécurité, code, cours
+- Donner un avis honnête et franc sur les idées business
+- Respecter l'islam dans tous les conseils
+- Si on demande de changer la couleur du fond : [BGCOLOR:#codecouleur]`;
 
 async function braveSearch(query, apiKey) {
   try {
     const response = await fetch(
-      `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=3&search_lang=fr`,
+      `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5&search_lang=fr&freshness=pd`,
       {
         headers: {
           'Accept': 'application/json',
-          'Accept-Encoding': 'gzip',
           'X-Subscription-Token': apiKey
         }
       }
     );
     if (!response.ok) return '';
     const data = await response.json();
-    const results = data.web?.results?.slice(0, 3) || [];
-    if (results.length === 0) return '';
-    return results.map(r => `${r.title}: ${r.description}`).join(' | ');
+    const results = data.web?.results?.slice(0, 5) || [];
+    const news = data.news?.results?.slice(0, 3) || [];
+    const all = [...news, ...results];
+    if (all.length === 0) return '';
+    return all.map(r => `${r.title}: ${r.description || r.extra_snippets?.[0] || ''}`).join(' | ');
   } catch(e) {
     return '';
   }
@@ -96,7 +76,7 @@ export default async function handler(req, res) {
   try {
     // Charger mémoire
     const memRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/memories?order=created_at.asc&limit=20`,
+      `${SUPABASE_URL}/rest/v1/memories?order=created_at.asc&limit=15`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     const memories = await memRes.json();
@@ -118,15 +98,15 @@ export default async function handler(req, res) {
       body: JSON.stringify({ role: lastMsg.role, content: lastMsg.content, session_id })
     }).catch(() => {});
 
-    // Recherche Brave si nécessaire
+    // Recherche Brave — TOUJOURS
     const userText = lastMsg?.content || '';
-    if (needsWebSearch(userText) && BRAVE_KEY) {
+    if (BRAVE_KEY && fullHistory.length > 0) {
       const webResults = await braveSearch(userText, BRAVE_KEY);
-      if (webResults && fullHistory.length > 0) {
+      if (webResults) {
         const last = fullHistory[fullHistory.length - 1];
         fullHistory[fullHistory.length - 1] = {
           ...last,
-          content: last.content + `\n[RÉSULTATS WEB EN TEMPS RÉEL]: ${webResults}`
+          content: last.content + `\n[DONNÉES WEB ACTUELLES - utilise ces infos pour répondre]: ${webResults}`
         };
       }
     }
@@ -141,7 +121,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 300,
+        max_tokens: 400,
         system: SYSTEM_PROMPT,
         messages: fullHistory
       })
