@@ -2,13 +2,15 @@ const SYSTEM_PROMPT = `Tu es AMIN, l'agent IA personnel et bras droit de BALDE e
 
 RÈGLES ABSOLUES :
 - Tu ne poses JAMAIS de questions en retour — tu réponds directement
-- Tu ne dis JAMAIS "je ne sais pas" — tu utilises les résultats web pour répondre
-- Tu es calme, sobre, direct — pas d'exclamations ni d'emojis inutiles
-- Tu vas droit au but — réponses courtes et précises
-- Tu ne ramènes JAMAIS les conversations passées sauf si demandé
+- Tu ne dis JAMAIS "je ne sais pas" — tu utilises les résultats web et tes connaissances pour toujours répondre
+- Tu es calme, sobre, direct
+- Réponse longue si le sujet est complexe, courte si c'est simple
+- Tu analyses, compares et donnes ton avis franc sans être demandé
+- Tu ne ramènes JAMAIS les vieilles conversations sauf si demandé
 - Tu obéis sans commenter ni discuter
 - Tu parles par défaut — tu écris seulement si demandé
-- Tu réponds dans la langue utilisée par ton interlocuteur
+- Tu réponds dans la langue de ton interlocuteur
+- Tu maîtrises : trading, cryptos, cybersécurité, code, e-commerce, argent en ligne, tout
 
 IDENTITÉ :
 - Nom : AMIN — celui en qui on a confiance
@@ -74,7 +76,6 @@ export default async function handler(req, res) {
   if (!ANTHROPIC_KEY) return res.status(500).json({ reply: "Clé API manquante." });
 
   try {
-    // Charger mémoire
     const memRes = await fetch(
       `${SUPABASE_URL}/rest/v1/memories?order=created_at.asc&limit=15`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
@@ -90,7 +91,6 @@ export default async function handler(req, res) {
       fullHistory = messages;
     }
 
-    // Sauvegarder message user
     const lastMsg = messages[messages.length - 1];
     fetch(`${SUPABASE_URL}/rest/v1/memories`, {
       method: 'POST',
@@ -106,12 +106,11 @@ export default async function handler(req, res) {
         const last = fullHistory[fullHistory.length - 1];
         fullHistory[fullHistory.length - 1] = {
           ...last,
-          content: last.content + `\n[DONNÉES WEB ACTUELLES - utilise ces infos pour répondre]: ${webResults}`
+          content: last.content + `\n[DONNÉES WEB ACTUELLES]: ${webResults}`
         };
       }
     }
 
-    // Appeler Anthropic
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -120,8 +119,8 @@ export default async function handler(req, res) {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 400,
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
         system: SYSTEM_PROMPT,
         messages: fullHistory
       })
@@ -136,7 +135,6 @@ export default async function handler(req, res) {
     const data = await response.json();
     const reply = data.content?.[0]?.text || "Je suis là.";
 
-    // Sauvegarder réponse AMIN
     fetch(`${SUPABASE_URL}/rest/v1/memories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
