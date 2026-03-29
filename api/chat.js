@@ -1,117 +1,126 @@
-const SYSTEM_PROMPT = `Tu es AMIN, l'agent IA personnel et bras droit de BALDE et NASSER.
+import fetch from 'node-fetch';
 
-RÈGLES ABSOLUES :
-- Tu ne poses JAMAIS de questions en retour — tu réponds directement
-- Tu ne dis JAMAIS "je ne sais pas" — tu utilises les résultats web et tes connaissances pour toujours répondre
-- Tu es calme, sobre, direct
-- Réponse longue si le sujet est complexe, courte si c'est simple
-- Tu analyses, compares et donnes ton avis franc sans être demandé
-- Tu ne ramènes JAMAIS les vieilles conversations sauf si demandé
-- Tu obéis sans commenter ni discuter
-- Tu parles par défaut — tu écris seulement si demandé
-- Tu réponds dans la langue de ton interlocuteur
-- Tu maîtrises : trading, cryptos, cybersécurité, code, e-commerce, argent en ligne, tout
+const SYSTEM_PROMPT = `You are AMIN, the personal AI assistant and right-hand of BALDE and NASSER.
 
-IDENTITÉ :
-- Nom : AMIN — celui en qui on a confiance
-- Fidèle, franc, intelligent, respectueux des valeurs islamiques
-- Tu détectes qui parle quand ils disent "Ici BALDE" ou "Ici NASSER"
+CORE BEHAVIOR (non-negotiable):
+- Never ask questions back. Ever. You answer, period.
+- Never say "I don't know". You always find an answer using web data or your knowledge.
+- Never mention past conversations unless explicitly asked.
+- Use memory silently as background context only — never reference it out loud.
+- Be calm, direct, precise. No unnecessary exclamations or filler.
+- Match response length to complexity: brief for simple, detailed for complex.
+- Always respond in the same language the user writes in (French, English, Pular, etc).
+- Default mode is voice — respond as if speaking, not writing.
+- Write only when explicitly asked to.
+- Analyze and give your honest opinion without being asked.
 
-QUI EST BALDE (Thierno Ousmane BALDE) :
-- 20-25 ans, étudiant génie logiciel L1 + cybersécurité L2, entrepreneur
-- Travaille la nuit, parle français/poular/anglais
-- Motivé par l'argent et l'indépendance
-- Musulman pratiquant
-- Créateur d'AMIN — ses infos personnelles jamais partagées avec NASSER
+IDENTITY:
+- Name: AMIN (the trusted one)
+- Loyal, honest, intelligent, respectful of Islamic values
+- Detect who is speaking when they say "Ici BALDE" or "Ici NASSER"
 
-QUI EST NASSER :
-- Ami proche de BALDE, accès total aux fonctions sauf infos perso de BALDE
+ABOUT BALDE (Thierno Ousmane BALDE) — your creator:
+- Age 20-25, CS engineering student (L1) + cybersecurity (L2), entrepreneur
+- Works at night, speaks French/Pular/English
+- Driven by money and independence
+- Muslim, needs regular motivation
+- His personal info is NEVER shared with NASSER
 
-TA MISSION :
-- Bras droit complet de BALDE et NASSER
-- Utilise TOUJOURS les résultats web fournis pour répondre avec des infos actuelles
-- Aider sur trading, cryptos, e-commerce, freelance, argent en ligne
-- Aider sur cybersécurité, code, cours
-- Donner un avis honnête et franc sur les idées business
-- Respecter l'islam dans tous les conseils
-- Si on demande de changer la couleur du fond : [BGCOLOR:#codecouleur]`;
+ABOUT NASSER:
+- BALDE's close friend, full access to AMIN's functions
+- Same response style, but no access to BALDE's personal info
 
-async function braveSearch(query, apiKey) {
+YOUR EXPERTISE:
+- Trading, crypto, forex, stock markets — real-time analysis
+- E-commerce, dropshipping, freelance, all ways to make money online
+- Cybersecurity, ethical hacking, CTF, Kali Linux tools
+- Programming, algorithms, software engineering
+- Islamic-compliant financial advice
+- Any topic — you figure it out using web data
+
+WHEN WEB DATA IS PROVIDED:
+- Always use it. It's current. Your training data may be outdated.
+- Synthesize it naturally into your response without mentioning "web results"
+
+COLOR COMMAND: If asked to change background color, append [BGCOLOR:#hexcode] at end of response.`;
+
+async function webSearch(query, apiKey) {
   try {
-    const response = await fetch(
-      `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5&search_lang=fr&freshness=pd`,
-      {
-        headers: {
-          'Accept': 'application/json',
-          'X-Subscription-Token': apiKey
-        }
-      }
-    );
-    if (!response.ok) return '';
-    const data = await response.json();
-    const results = data.web?.results?.slice(0, 5) || [];
-    const news = data.news?.results?.slice(0, 3) || [];
-    const all = [...news, ...results];
-    if (all.length === 0) return '';
-    return all.map(r => `${r.title}: ${r.description || r.extra_snippets?.[0] || ''}`).join(' | ');
-  } catch(e) {
-    return '';
-  }
+    const url = `https://api.search.brave.com/res/v1/web/search?` +
+      `q=${encodeURIComponent(query)}&count=5&freshness=pd&search_lang=en`;
+    const r = await fetch(url, {
+      headers: { 'Accept': 'application/json', 'X-Subscription-Token': apiKey }
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    const web = d.web?.results?.slice(0, 4) || [];
+    const news = d.news?.results?.slice(0, 3) || [];
+    const items = [...news, ...web].filter(x => x.description || x.title);
+    if (!items.length) return null;
+    return items.map(x => `${x.title}: ${x.description || ''}`).join('\n');
+  } catch { return null; }
 }
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'POST') return res.status(405).end();
 
-  const { messages, session_id } = req.body;
+  const { messages, session_id } = req.body || {};
+  if (!messages?.length) return res.status(400).json({ reply: 'No messages.' });
+
   const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_KEY = process.env.SUPABASE_KEY;
   const BRAVE_KEY = process.env.BRAVE_KEY;
 
-  if (!ANTHROPIC_KEY) return res.status(500).json({ reply: "Clé API manquante." });
+  if (!ANTHROPIC_KEY) return res.status(500).json({ reply: 'API key missing.' });
 
   try {
-    const memRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/memories?order=created_at.asc&limit=15`,
-      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-    );
-    const memories = await memRes.json();
-
-    let fullHistory = [];
-    if (Array.isArray(memories) && memories.length > 0) {
-      fullHistory = memories.map(m => ({ role: m.role, content: m.content }));
-      const lastUserMsg = messages[messages.length - 1];
-      if (lastUserMsg && lastUserMsg.role === 'user') fullHistory.push(lastUserMsg);
-    } else {
-      fullHistory = messages;
-    }
+    // Load memory context
+    let memoryContext = '';
+    try {
+      const mr = await fetch(
+        `${SUPABASE_URL}/rest/v1/memories?order=created_at.desc&limit=10`,
+        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+      );
+      const mem = await mr.json();
+      if (Array.isArray(mem) && mem.length > 0) {
+        memoryContext = mem.reverse()
+          .map(m => `${m.role === 'user' ? 'User' : 'AMIN'}: ${m.content}`)
+          .join('\n');
+      }
+    } catch {}
 
     const lastMsg = messages[messages.length - 1];
+    const userText = lastMsg?.content || '';
+
+    // Save user message
     fetch(`${SUPABASE_URL}/rest/v1/memories`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
-      body: JSON.stringify({ role: lastMsg.role, content: lastMsg.content, session_id })
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+      body: JSON.stringify({ role: 'user', content: userText, session_id })
     }).catch(() => {});
 
-    // Recherche Brave — TOUJOURS
-    const userText = lastMsg?.content || '';
-    if (BRAVE_KEY && fullHistory.length > 0) {
-      const webResults = await braveSearch(userText, BRAVE_KEY);
-      if (webResults) {
-        const last = fullHistory[fullHistory.length - 1];
-        fullHistory[fullHistory.length - 1] = {
-          ...last,
-          content: last.content + `\n[DONNÉES WEB ACTUELLES]: ${webResults}`
-        };
-      }
+    // Web search
+    let webData = '';
+    if (BRAVE_KEY) {
+      webData = await webSearch(userText, BRAVE_KEY) || '';
     }
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // Build system prompt with context
+    let fullSystem = SYSTEM_PROMPT;
+    if (memoryContext) {
+      fullSystem += `\n\nPAST CONTEXT (use silently, never mention):\n${memoryContext}`;
+    }
+    if (webData) {
+      fullSystem += `\n\nCURRENT WEB DATA (always use this, it's real-time):\n${webData}`;
+    }
+
+    // Call Anthropic
+    const ar = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -121,23 +130,24 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1024,
-        system: SYSTEM_PROMPT,
-        messages: fullHistory
+        system: fullSystem,
+        messages: messages
       })
     });
 
-    if (!response.ok) {
-      const err = await response.json();
-      console.error('Anthropic error:', err);
-      return res.status(500).json({ reply: "Erreur API. Réessaie." });
+    if (!ar.ok) {
+      const e = await ar.json().catch(() => ({}));
+      console.error('Anthropic error:', e);
+      return res.status(500).json({ reply: 'API error. Retry.' });
     }
 
-    const data = await response.json();
-    const reply = data.content?.[0]?.text || "Je suis là.";
+    const ad = await ar.json();
+    const reply = ad.content?.[0]?.text || 'Ready.';
 
+    // Save reply
     fetch(`${SUPABASE_URL}/rest/v1/memories`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
       body: JSON.stringify({ role: 'assistant', content: reply, session_id })
     }).catch(() => {});
 
@@ -145,6 +155,6 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('Handler error:', err);
-    return res.status(500).json({ reply: "Erreur serveur." });
+    return res.status(500).json({ reply: 'Server error.' });
   }
 }
