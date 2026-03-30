@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="AMIN">
 <title>AMIN</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"><\/script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   :root { --bg: #000; --surface: rgba(255,255,255,0.05); --border: rgba(255,255,255,0.08); --text: #fff; --text-dim: #555; }
@@ -16,16 +16,14 @@
   body { height: 100%; height: 100dvh; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; transition: background 1s ease; }
   .app { display: flex; flex-direction: column; height: 100dvh; }
   .header { padding: 12px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(20px); }
-  
-  /* Avatar SVG style */
   .avatar { width: 42px; height: 42px; border-radius: 50%; background: #111; border: 1px solid rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .avatar svg { width: 22px; height: 22px; }
-
   .header-text h1 { font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: 2px; }
   .header-text p { font-size: 10px; color: #555; margin-top: 1px; }
   .mode-badge { display: inline-block; font-size: 9px; padding: 2px 6px; border-radius: 4px; margin-top: 2px; font-weight: 600; letter-spacing: 1px; }
   .mode-badge.vocal { background: rgba(255,255,255,0.08); color: #888; }
   .mode-badge.ecrit { background: rgba(255,255,255,0.15); color: #fff; }
+  .speaker-badge { font-size: 9px; color: #555; margin-left: 6px; letter-spacing: 1px; }
   .voice-indicator { display: none; align-items: center; gap: 2px; height: 14px; margin-top: 3px; }
   .voice-indicator.active { display: flex; }
   .voice-indicator span { width: 2px; background: #fff; border-radius: 2px; animation: wave 1s infinite ease-in-out; }
@@ -84,7 +82,7 @@
       </svg>
     </div>
     <div class="header-text">
-      <h1>AMIN</h1>
+      <h1>AMIN <span class="speaker-badge" id="speakerBadge">· BALDE</span></h1>
       <div class="mode-badge vocal" id="modeBadge">VOCAL</div>
       <div class="voice-indicator" id="voiceIndicator">
         <span></span><span></span><span></span><span></span><span></span>
@@ -112,7 +110,7 @@
   </div>
 </div>
 <script>
-const SESSION_ID = 'cherno_' + Date.now();
+const SESSION_ID = 'session_' + Date.now();
 const messagesEl = document.getElementById('messages');
 const inputEl = document.getElementById('input');
 const typingEl = document.getElementById('typing');
@@ -121,11 +119,18 @@ const micBtn = document.getElementById('micBtn');
 const stopBtn = document.getElementById('stopBtn');
 const voiceIndicator = document.getElementById('voiceIndicator');
 const modeBadge = document.getElementById('modeBadge');
+const speakerBadge = document.getElementById('speakerBadge');
 let history = [];
 let isLoading = false;
 let recognition = null;
 let isSpeaking = false;
-let isWriteMode = false; // false = vocal, true = écrit
+let isWriteMode = false;
+let currentSpeaker = 'BALDE';
+
+function setSpeaker(name) {
+  currentSpeaker = name;
+  speakerBadge.textContent = '· ' + name;
+}
 
 function setMode(write) {
   isWriteMode = write;
@@ -133,7 +138,6 @@ function setMode(write) {
   modeBadge.className = 'mode-badge ' + (write ? 'ecrit' : 'vocal');
 }
 
-// Horloge
 function updateClock() {
   const now = new Date();
   const h = String(now.getHours()).padStart(2, '0');
@@ -144,7 +148,6 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-// Météo
 async function loadWeather() {
   try {
     const res = await fetch('/api/weather');
@@ -155,7 +158,6 @@ async function loadWeather() {
 loadWeather();
 setInterval(loadWeather, 600000);
 
-// Voix
 window.speechSynthesis.getVoices();
 window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 
@@ -205,7 +207,6 @@ function speakText(text) {
   window.speechSynthesis.speak(utter);
 }
 
-// Micro principal
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
@@ -221,7 +222,6 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   recognition.onerror = () => micBtn.classList.remove('listening');
 }
 
-// Mot de réveil AMIN
 function startWakeWord() {
   if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -231,8 +231,8 @@ function startWakeWord() {
   wake.interimResults = true;
   wake.onresult = (e) => {
     for (let i = e.resultIndex; i < e.results.length; i++) {
-      const transcript = e.results[i][0].transcript.toLowerCase().trim();
-      if (transcript.includes('amin')) {
+      const t = e.results[i][0].transcript.toLowerCase().trim();
+      if (t.includes('amin')) {
         stopSpeaking();
         setTimeout(() => {
           if (!micBtn.classList.contains('listening') && recognition) {
@@ -301,9 +301,13 @@ async function sendMessage() {
   sendBtn.disabled = true;
   stopSpeaking();
 
-  // Détecter changement de mode
-  if (/mode.*(écri|ecri|texte)/i.test(text)) { setMode(true); }
-  else if (/mode.*(voc|oral|parle|speak)/i.test(text)) { setMode(false); }
+  // Détecter le locuteur
+  if (/ici\s+balde/i.test(text)) setSpeaker('BALDE');
+  else if (/ici\s+nasser/i.test(text)) setSpeaker('NASSER');
+
+  // Détecter mode
+  if (/mode.*(écri|ecri|texte)/i.test(text)) setMode(true);
+  else if (/mode.*(voc|oral|parle|speak)/i.test(text)) setMode(false);
 
   addMessage('user', text);
   history.push({ role: 'user', content: text });
@@ -314,7 +318,7 @@ async function sendMessage() {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: history, session_id: SESSION_ID })
+      body: JSON.stringify({ messages: history, session_id: SESSION_ID, speaker: currentSpeaker })
     });
     const data = await res.json();
     let reply = data.reply || "Je suis là.";
@@ -324,8 +328,6 @@ async function sendMessage() {
 
     typingEl.classList.remove('active');
 
-    // En mode écrit → affiche toujours
-    // En mode vocal → affiche seulement si demandé explicitement
     const wantWrite = isWriteMode || /écri|ecri|par écrit|en texte|affiche|montre/i.test(text);
     if (wantWrite) addMessage('assistant', reply);
 
