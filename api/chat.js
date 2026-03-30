@@ -67,7 +67,8 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { messages, session_id } = req.body || {};
+  const { messages, session_id, speaker } = req.body;
+const currentSpeaker = speaker || 'BALDE';
   if (!messages?.length) return res.status(400).json({ reply: 'No messages.' });
 
   const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
@@ -110,7 +111,7 @@ export default async function handler(req, res) {
     }
 
     // Build system prompt with context
-    let fullSystem = SYSTEM_PROMPT;
+    let fullSystem = SYSTEM_PROMPT + \`\n\nCURRENT SPEAKER: \${currentSpeaker}. Adapt your response accordingly.\`;
     if (memoryContext) {
       fullSystem += `\n\nPAST CONTEXT (use silently, never mention):\n${memoryContext}`;
     }
