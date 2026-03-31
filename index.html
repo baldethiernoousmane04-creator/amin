@@ -318,7 +318,7 @@ async function sendMessage() {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: history, session_id: SESSION_ID, speaker: currentSpeaker })
+    body: JSON.stringify({ messages: history, session_id: SESSION_ID, speaker: currentSpeaker, datetime: new Date().toLocaleString() })
     });
     const data = await res.json();
     let reply = data.reply || "Je suis là.";
