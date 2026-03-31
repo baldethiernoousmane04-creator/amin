@@ -66,7 +66,8 @@ export default async function handler(req, res) {
     let memoryContext = '';
     try {
       const mr = await fetch(
-        `${SUPABASE_URL}/rest/v1/memories?order=created_at.desc&limit=10`,
+       // APRÈS
+`${SUPABASE_URL}/rest/v1/memories?order=created_at.desc&limit=5`
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
       );
       const mem = await mr.json();
@@ -94,8 +95,9 @@ webData = await webSearch(searchQuery, BRAVE_KEY) || '';
 
     const now = datetime || new Date().toLocaleString();
     let fullSystem = SYSTEM_PROMPT + `\n\nSPEAKER: ${currentSpeaker}.\nDate/heure locale: ${now}.`;
-    if (memoryContext) fullSystem += `\n\nCONTEXTE PASSÉ:\n${memoryContext}`;
-    if (webData) fullSystem += `\n\nWEB TEMPS RÉEL:\n${webData}`;
+  // APRÈS
+if (webData) fullSystem += `\n\nWEB TEMPS RÉEL (priorité absolue, écrase tout):\n${webData}`;
+if (memoryContext) fullSystem += `\n\nCONTEXTE PASSÉ:\n${memoryContext}`;
 
     const ar = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
