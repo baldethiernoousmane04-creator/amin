@@ -88,7 +88,7 @@ export default async function handler(req, res) {
 
     let webData = '';
     if (BRAVE_KEY) {
-     const searchQuery = userText + ' ' + new Date().toLocaleDateString('fr-FR');
+    const searchQuery = userText + ' ' + new Date().toLocaleDateString('fr-FR') + ' match score résultat';
 webData = await webSearch(searchQuery, BRAVE_KEY) || '';
     }
 
