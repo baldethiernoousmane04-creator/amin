@@ -29,8 +29,8 @@ WEB & MÉMOIRE :
 
 async function webSearch(query, apiKey) {
   try {
-  const url = `https://api.search.brave.com/res/v1/web/search?` +
-  `q=${encodeURIComponent(query)}&count=8&freshness=pd&search_lang=fr&country=SN`;
+    const url = `https://api.search.brave.com/res/v1/web/search?` +
+      `q=${encodeURIComponent(query)}&count=8&freshness=pd&search_lang=fr&country=SN`;
     const r = await fetch(url, {
       headers: { 'Accept': 'application/json', 'X-Subscription-Token': apiKey }
     });
@@ -66,8 +66,7 @@ export default async function handler(req, res) {
     let memoryContext = '';
     try {
       const mr = await fetch(
-       // APRÈS
-`${SUPABASE_URL}/rest/v1/memories?order=created_at.desc&limit=5`
+        `${SUPABASE_URL}/rest/v1/memories?order=created_at.desc&limit=5`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
       );
       const mem = await mr.json();
@@ -89,15 +88,14 @@ export default async function handler(req, res) {
 
     let webData = '';
     if (BRAVE_KEY) {
-    const searchQuery = userText + ' ' + new Date().toLocaleDateString('fr-FR') + ' match score résultat';
-webData = await webSearch(searchQuery, BRAVE_KEY) || '';
+      const searchQuery = userText + ' ' + new Date().toLocaleDateString('fr-FR') + ' match score résultat';
+      webData = await webSearch(searchQuery, BRAVE_KEY) || '';
     }
 
     const now = datetime || new Date().toLocaleString();
     let fullSystem = SYSTEM_PROMPT + `\n\nSPEAKER: ${currentSpeaker}.\nDate/heure locale: ${now}.`;
-  // APRÈS
-if (webData) fullSystem += `\n\nWEB TEMPS RÉEL (priorité absolue, écrase tout):\n${webData}`;
-if (memoryContext) fullSystem += `\n\nCONTEXTE PASSÉ:\n${memoryContext}`;
+    if (webData) fullSystem += `\n\nWEB TEMPS RÉEL (priorité absolue, écrase tout):\n${webData}`;
+    if (memoryContext) fullSystem += `\n\nCONTEXTE PASSÉ:\n${memoryContext}`;
 
     const ar = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
