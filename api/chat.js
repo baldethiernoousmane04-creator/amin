@@ -29,8 +29,8 @@ WEB & MÉMOIRE :
 
 async function webSearch(query, apiKey) {
   try {
-    const url = `https://api.search.brave.com/res/v1/web/search?` +
-      `q=${encodeURIComponent(query)}&count=5&freshness=pd&search_lang=en`;
+  const url = `https://api.search.brave.com/res/v1/web/search?` +
+  `q=${encodeURIComponent(query)}&count=8&freshness=pd&search_lang=fr&country=SN`;
     const r = await fetch(url, {
       headers: { 'Accept': 'application/json', 'X-Subscription-Token': apiKey }
     });
@@ -88,7 +88,8 @@ export default async function handler(req, res) {
 
     let webData = '';
     if (BRAVE_KEY) {
-      webData = await webSearch(userText, BRAVE_KEY) || '';
+     const searchQuery = userText + ' ' + new Date().toLocaleDateString('fr-FR');
+webData = await webSearch(searchQuery, BRAVE_KEY) || '';
     }
 
     const now = datetime || new Date().toLocaleString();
