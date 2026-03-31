@@ -51,7 +51,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).end();
 
- const { messages, session_id, speaker, datetime } = req.body;
+  const { messages, session_id, speaker, datetime } = req.body;
   const currentSpeaker = speaker || 'BALDE';
   if (!messages?.length) return res.status(400).json({ reply: 'No messages.' });
 
@@ -91,8 +91,8 @@ export default async function handler(req, res) {
       webData = await webSearch(userText, BRAVE_KEY) || '';
     }
 
-   const now = new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Africa/Dakar' });
-let fullSystem = SYSTEM_PROMPT + `\n\nSPEAKER: ${currentSpeaker}.\nDate et heure actuelles : ${now}, heure de Dakar.`;
+    const now = datetime || new Date().toLocaleString();
+    let fullSystem = SYSTEM_PROMPT + `\n\nSPEAKER: ${currentSpeaker}.\nDate/heure locale: ${now}.`;
     if (memoryContext) fullSystem += `\n\nCONTEXTE PASSÉ:\n${memoryContext}`;
     if (webData) fullSystem += `\n\nWEB TEMPS RÉEL:\n${webData}`;
 
