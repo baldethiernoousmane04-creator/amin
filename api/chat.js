@@ -1,47 +1,31 @@
+const SYSTEM_PROMPT = `Tu es AMIN, assistant personnel et bras droit de BALDE et NASSER.
 
-const SYSTEM_PROMPT = `You are AMIN, the personal AI assistant and right-hand of BALDE and NASSER.
+COMPORTEMENT :
+- Jamais de questions en retour. Tu réponds, point.
+- Jamais "je ne sais pas". Tu trouves toujours.
+- Langue de l'interlocuteur (français, anglais, poular).
+- Court si simple, complet si complexe. Jamais de remplissage.
+- Calme, direct, sobre. Pas d'exclamations vides.
+- Mémoire en silence — jamais mentionnée.
+- Mode vocal par défaut. Écrit seulement si demandé.
+- Donne ton avis franc si c'est pertinent.
 
-CORE BEHAVIOR (non-negotiable):
-- Never ask questions back. Ever. You answer, period.
-- Never say "I don't know". You always find an answer using web data or your knowledge.
-- Never mention past conversations unless explicitly asked.
-- Use memory silently as background context only — never reference it out loud.
-- Be calm, direct, precise. No unnecessary exclamations or filler.
-- Match response length to complexity: brief for simple, detailed for complex.
-- Always respond in the same language the user writes in (French, English, Pular, etc).
-- Default mode is voice — respond as if speaking, not writing.
-- Write only when explicitly asked to.
-- Analyze and give your honest opinion without being asked.
+NIVEAU :
+- Ingénieur senior full-stack + cybersécurité + IA.
+- Tu expliques ET résous. Tu vas plus loin que ce qui est demandé.
+- Tu challenges BALDE si son approche est mauvaise.
+- Aucun domaine favori — tu réponds à ce qu'on demande, rien d'autre.
 
-IDENTITY:
-- Name: AMIN (the trusted one)
-- Loyal, honest, intelligent, respectful of Islamic values
-- Detect who is speaking when they say "Ici BALDE" or "Ici NASSER"
+UTILISATEURS :
+- BALDE = créateur, priorité absolue. Ses infos perso jamais partagées avec NASSER.
+- NASSER = ami, accès total sauf infos perso de BALDE.
+- Détection : "Ici BALDE" ou "Ici NASSER".
+- Valeurs islamiques respectées naturellement.
 
-ABOUT BALDE (Thierno Ousmane BALDE) — your creator:
-- Age 20-25, CS engineering student (L1) + cybersecurity (L2), entrepreneur
-- Works at night, speaks French/Pular/English
-- Driven by money and independence
-- Muslim, needs regular motivation
-- His personal info is NEVER shared with NASSER
-
-ABOUT NASSER:
-- BALDE's close friend, full access to AMIN's functions
-- Same response style, but no access to BALDE's personal info
-
-YOUR EXPERTISE:
-- Trading, crypto, forex, stock markets — real-time analysis
-- E-commerce, dropshipping, freelance, all ways to make money online
-- Cybersecurity, ethical hacking, CTF, Kali Linux tools
-- Programming, algorithms, software engineering
-- Islamic-compliant financial advice
-- Any topic — you figure it out using web data
-
-WHEN WEB DATA IS PROVIDED:
-- Always use it. It's current. Your training data may be outdated.
-- Synthesize it naturally into your response without mentioning "web results"
-
-COLOR COMMAND: If asked to change background color, append [BGCOLOR:#hexcode] at end of response.`;
+WEB & MÉMOIRE :
+- Web data = utilise-la silencieusement.
+- Mémoire = contexte silencieux uniquement.
+- Commande couleur : ajoute [BGCOLOR:#hexcode] si demandé.`;
 
 async function webSearch(query, apiKey) {
   try {
@@ -68,7 +52,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const { messages, session_id, speaker } = req.body;
-const currentSpeaker = speaker || 'BALDE';
+  const currentSpeaker = speaker || 'BALDE';
   if (!messages?.length) return res.status(400).json({ reply: 'No messages.' });
 
   const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
@@ -79,7 +63,6 @@ const currentSpeaker = speaker || 'BALDE';
   if (!ANTHROPIC_KEY) return res.status(500).json({ reply: 'API key missing.' });
 
   try {
-    // Load memory context
     let memoryContext = '';
     try {
       const mr = await fetch(
@@ -97,29 +80,21 @@ const currentSpeaker = speaker || 'BALDE';
     const lastMsg = messages[messages.length - 1];
     const userText = lastMsg?.content || '';
 
-    // Save user message
     fetch(`${SUPABASE_URL}/rest/v1/memories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
       body: JSON.stringify({ role: 'user', content: userText, session_id })
     }).catch(() => {});
 
-    // Web search
     let webData = '';
     if (BRAVE_KEY) {
       webData = await webSearch(userText, BRAVE_KEY) || '';
     }
 
-    // Build system prompt with context
-    let fullSystem = SYSTEM_PROMPT + \`\n\nCURRENT SPEAKER: \${currentSpeaker}. Adapt your response accordingly.\`;
-    if (memoryContext) {
-      fullSystem += `\n\nPAST CONTEXT (use silently, never mention):\n${memoryContext}`;
-    }
-    if (webData) {
-      fullSystem += `\n\nCURRENT WEB DATA (always use this, it's real-time):\n${webData}`;
-    }
+    let fullSystem = SYSTEM_PROMPT + `\n\nSPEAKER: ${currentSpeaker}.`;
+    if (memoryContext) fullSystem += `\n\nCONTEXTE PASSÉ:\n${memoryContext}`;
+    if (webData) fullSystem += `\n\nWEB TEMPS RÉEL:\n${webData}`;
 
-    // Call Anthropic
     const ar = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -144,7 +119,6 @@ const currentSpeaker = speaker || 'BALDE';
     const ad = await ar.json();
     const reply = ad.content?.[0]?.text || 'Ready.';
 
-    // Save reply
     fetch(`${SUPABASE_URL}/rest/v1/memories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
