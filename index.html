@@ -44,12 +44,14 @@
   @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
   .msg.user { align-items: flex-end; }
   .msg.amin { align-items: flex-start; }
-  .msg-bubble { max-width: 80%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.55; word-break: break-word; }
+  .msg-bubble { max-width: 85%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.55; word-break: break-word; }
   .msg-bubble p { margin: 0 0 6px 0; }
   .msg-bubble ul, .msg-bubble ol { padding-left: 16px; margin: 4px 0; }
   .msg-bubble code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
   .msg.amin .msg-bubble { background: rgba(255,255,255,0.04); color: var(--text); border-bottom-left-radius: 4px; border: 1px solid rgba(255,255,255,0.07); }
   .msg.user .msg-bubble { background: rgba(255,255,255,0.07); color: var(--text); border-bottom-right-radius: 4px; border: 1px solid rgba(255,255,255,0.1); white-space: pre-wrap; }
+  .file-bubble { max-width: 85%; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); font-size: 12px; color: #888; display: flex; align-items: center; gap: 8px; }
+  .file-bubble span { color: #fff; font-size: 13px; }
   .typing { display: none; align-items: center; gap: 6px; padding: 0 16px 8px; flex-shrink: 0; }
   .typing.active { display: flex; }
   .typing-text { font-size: 11px; color: var(--text-dim); }
@@ -69,6 +71,10 @@
   .mic-btn { width: 42px; height: 42px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
   .mic-btn.listening { background: #ff3b30; border-color: #ff3b30; }
   .mic-btn svg { fill: #fff; }
+  .upload-btn { width: 42px; height: 42px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .upload-btn:active { opacity: 0.7; }
+  .upload-btn svg { fill: #fff; }
+  #fileInput { display: none; }
 </style>
 </head>
 <body>
@@ -103,6 +109,10 @@
     <button class="mic-btn" id="micBtn" onclick="toggleMic()">
       <svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm0 2a2 2 0 0 0-2 2v6a2 2 0 0 0 4 0V5a2 2 0 0 0-2-2zm-1 14.93A8 8 0 0 1 4 11H2a10 10 0 0 0 9 9.93V23h2v-2.07A10 10 0 0 0 22 11h-2a8 8 0 0 1-7 7.93z"/></svg>
     </button>
+    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+      <svg width="16" height="16" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/></svg>
+    </button>
+    <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.webp" onchange="handleFile(this)">
     <textarea id="input" placeholder="Parle ou écris à AMIN..." rows="1"></textarea>
     <button class="send" id="sendBtn" onclick="sendMessage()">
       <svg width="16" height="16" viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
@@ -271,6 +281,64 @@ function toggleMic() {
   }
 }
 
+async function handleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const maxSize = 10 * 1024 * 1024;
+  if (file.size > maxSize) {
+    addMessage('assistant', 'Fichier trop lourd. Max 10MB.');
+    return;
+  }
+
+  const div = document.createElement('div');
+  div.className = 'msg user';
+  const bubble = document.createElement('div');
+  bubble.className = 'file-bubble';
+  bubble.innerHTML = `📄 <span>${file.name}</span>`;
+  div.appendChild(bubble);
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  const question = inputEl.value.trim() || 'Analyse ce document et résume-le.';
+  inputEl.value = '';
+
+  isLoading = true;
+  sendBtn.disabled = true;
+  typingEl.classList.add('active');
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const base64 = e.target.result.split(',')[1];
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          file: base64,
+          filename: file.name,
+          question,
+          speaker: currentSpeaker,
+          datetime: new Date().toLocaleString()
+        })
+      });
+      const data = await res.json();
+      const reply = data.reply || 'Impossible de lire ce fichier.';
+      typingEl.classList.remove('active');
+      addMessage('assistant', reply);
+      history.push({ role: 'user', content: `[Fichier: ${file.name}] ${question}` });
+      history.push({ role: 'assistant', content: reply });
+      if (!isWriteMode) speakText(reply);
+    } catch(err) {
+      typingEl.classList.remove('active');
+      addMessage('assistant', 'Erreur lecture fichier.');
+    }
+    isLoading = false;
+    sendBtn.disabled = false;
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
 function addMessage(role, text) {
   const div = document.createElement('div');
   div.className = 'msg ' + (role === 'assistant' ? 'amin' : 'user');
@@ -315,7 +383,6 @@ async function sendMessage() {
 
   if (/ici\s+balde/i.test(text)) setSpeaker('BALDE');
   else if (/ici\s+nasser/i.test(text)) setSpeaker('NASSER');
-
   if (/mode.*(écri|ecri|texte)/i.test(text)) setMode(true);
   else if (/mode.*(voc|oral|parle|speak)/i.test(text)) setMode(false);
 
@@ -332,18 +399,13 @@ async function sendMessage() {
     });
     const data = await res.json();
     let reply = data.reply || "Je suis là.";
-
     const bgMatch = reply.match(/\[BGCOLOR:(#[a-fA-F0-9]{3,6}|[a-z]+)\]/i);
     if (bgMatch) changeBg(bgMatch[1]);
-
     typingEl.classList.remove('active');
-
     const wantWrite = isWriteMode || /écri|ecri|par écrit|en texte|affiche|montre/i.test(text);
     if (wantWrite) addMessage('assistant', reply);
-
     history.push({ role: 'assistant', content: reply });
     if (!isWriteMode) speakText(reply);
-
   } catch (err) {
     typingEl.classList.remove('active');
     addMessage('assistant', "Problème de connexion. Réessaie.");
