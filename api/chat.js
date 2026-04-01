@@ -77,16 +77,17 @@ export default async function handler(req, res) {
   if (!ANTHROPIC_KEY) return res.status(500).json({ reply: 'API key missing.' });
 
   try {
+    // Mémoire courte — 20 derniers messages du speaker actuel
     let memoryContext = '';
     try {
       const mr = await fetch(
-        `${SUPABASE_URL}/rest/v1/memories?order=created_at.desc&limit=5`,
+        `${SUPABASE_URL}/rest/v1/memories?speaker=eq.${currentSpeaker}&order=created_at.desc&limit=20`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
       );
       const mem = await mr.json();
       if (Array.isArray(mem) && mem.length > 0) {
         memoryContext = mem.reverse()
-          .map(m => `${m.role === 'user' ? 'User' : 'AMIN'}: ${m.content}`)
+          .map(m => `${m.role === 'user' ? currentSpeaker : 'AMIN'}: ${m.content}`)
           .join('\n');
       }
     } catch {}
@@ -94,22 +95,23 @@ export default async function handler(req, res) {
     const lastMsg = messages[messages.length - 1];
     const userText = lastMsg?.content || '';
 
+    // Sauvegarder avec speaker
     fetch(`${SUPABASE_URL}/rest/v1/memories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-      body: JSON.stringify({ role: 'user', content: userText, session_id })
+      body: JSON.stringify({ role: 'user', content: userText, session_id, speaker: currentSpeaker })
     }).catch(() => {});
 
     let webData = '';
     if (BRAVE_KEY) {
-      const searchQuery = userText + ' ' + new Date().toLocaleDateString('fr-FR') + ' match score résultat';
+      const searchQuery = userText + ' ' + new Date().toLocaleDateString('fr-FR');
       webData = await webSearch(searchQuery, BRAVE_KEY) || '';
     }
 
     const now = datetime || new Date().toLocaleString();
     let fullSystem = SYSTEM_PROMPT + `\n\nSPEAKER: ${currentSpeaker}.\nDate/heure locale: ${now}.`;
-    if (webData) fullSystem += `\n\nWEB TEMPS RÉEL (priorité absolue, écrase tout):\n${webData}`;
-    if (memoryContext) fullSystem += `\n\nCONTEXTE PASSÉ:\n${memoryContext}`;
+    if (webData) fullSystem += `\n\nWEB TEMPS RÉEL (priorité absolue):\n${webData}`;
+    if (memoryContext) fullSystem += `\n\nMÉMOIRE ${currentSpeaker}:\n${memoryContext}`;
 
     const ar = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -135,10 +137,11 @@ export default async function handler(req, res) {
     const ad = await ar.json();
     const reply = ad.content?.[0]?.text || 'Ready.';
 
+    // Sauvegarder réponse avec speaker
     fetch(`${SUPABASE_URL}/rest/v1/memories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-      body: JSON.stringify({ role: 'assistant', content: reply, session_id })
+      body: JSON.stringify({ role: 'assistant', content: reply, session_id, speaker: currentSpeaker })
     }).catch(() => {});
 
     return res.status(200).json({ reply });
