@@ -123,6 +123,7 @@ const speakerBadge = document.getElementById('speakerBadge');
 let history = [];
 let isLoading = false;
 let recognition = null;
+let wakeActive = false;
 let isSpeaking = false;
 let isWriteMode = false;
 let currentSpeaker = 'BALDE';
@@ -207,54 +208,66 @@ function speakText(text) {
   window.speechSynthesis.speak(utter);
 }
 
-if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SR();
-  recognition.lang = 'fr-FR';
-  recognition.continuous = false;
-  recognition.interimResults = false;
-  recognition.onresult = (e) => {
-    inputEl.value = e.results[0][0].transcript;
-    micBtn.classList.remove('listening');
-    sendMessage();
-  };
-  recognition.onend = () => micBtn.classList.remove('listening');
-  recognition.onerror = () => micBtn.classList.remove('listening');
-}
-
 function startWakeWord() {
   if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const wake = new SR();
-  wake.lang = 'fr-FR';
-  wake.continuous = true;
-  wake.interimResults = true;
-  wake.onresult = (e) => {
+
+  recognition = new SR();
+  recognition.lang = 'fr-FR';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+
+  recognition.onresult = (e) => {
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const t = e.results[i][0].transcript.toLowerCase().trim();
-      if (t.includes('amin')) {
-        stopSpeaking();
-        setTimeout(() => {
-          if (!micBtn.classList.contains('listening') && recognition) {
-            try { recognition.start(); micBtn.classList.add('listening'); } catch(err) {}
+      if (!wakeActive) {
+        if (t.includes('amin')) {
+          wakeActive = true;
+          stopSpeaking();
+          micBtn.classList.add('listening');
+          inputEl.value = '';
+        }
+      } else {
+        if (e.results[i].isFinal) {
+          const cmd = e.results[i][0].transcript.trim();
+          if (cmd && !cmd.toLowerCase().includes('amin')) {
+            inputEl.value = cmd;
+            wakeActive = false;
+            micBtn.classList.remove('listening');
+            sendMessage();
+          } else {
+            inputEl.value = '';
           }
-        }, 300);
+        }
       }
     }
   };
-  wake.onend = () => setTimeout(() => { try { wake.start(); } catch(e) {} }, 1000);
-  wake.onerror = () => setTimeout(() => { try { wake.start(); } catch(e) {} }, 2000);
-  try { wake.start(); } catch(e) {}
+
+  recognition.onend = () => {
+    wakeActive = false;
+    micBtn.classList.remove('listening');
+    setTimeout(() => { try { recognition.start(); } catch(e) {} }, 500);
+  };
+
+  recognition.onerror = (e) => {
+    if (e.error !== 'aborted') {
+      wakeActive = false;
+      micBtn.classList.remove('listening');
+      setTimeout(() => { try { recognition.start(); } catch(err) {} }, 1000);
+    }
+  };
+
+  try { recognition.start(); } catch(e) {}
 }
 
 function toggleMic() {
   if (!recognition) return;
   if (micBtn.classList.contains('listening')) {
-    recognition.stop();
+    wakeActive = false;
     micBtn.classList.remove('listening');
   } else {
     stopSpeaking();
-    recognition.start();
+    wakeActive = true;
     micBtn.classList.add('listening');
   }
 }
@@ -301,11 +314,9 @@ async function sendMessage() {
   sendBtn.disabled = true;
   stopSpeaking();
 
-  // Détecter le locuteur
   if (/ici\s+balde/i.test(text)) setSpeaker('BALDE');
   else if (/ici\s+nasser/i.test(text)) setSpeaker('NASSER');
 
-  // Détecter mode
   if (/mode.*(écri|ecri|texte)/i.test(text)) setMode(true);
   else if (/mode.*(voc|oral|parle|speak)/i.test(text)) setMode(false);
 
@@ -318,7 +329,7 @@ async function sendMessage() {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages: history, session_id: SESSION_ID, speaker: currentSpeaker, datetime: new Date().toLocaleString() })
+      body: JSON.stringify({ messages: history, session_id: SESSION_ID, speaker: currentSpeaker, datetime: new Date().toLocaleString() })
     });
     const data = await res.json();
     let reply = data.reply || "Je suis là.";
