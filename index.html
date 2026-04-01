@@ -89,7 +89,7 @@
     </div>
     <div class="header-text">
       <h1>AMIN <span class="speaker-badge" id="speakerBadge">· BALDE</span></h1>
-      <div class="mode-badge vocal" id="modeBadge">VOCAL</div>
+      <div class="mode-badge ecrit" id="modeBadge">ÉCRIT</div>
       <div class="voice-indicator" id="voiceIndicator">
         <span></span><span></span><span></span><span></span><span></span>
       </div>
@@ -402,10 +402,9 @@ async function sendMessage() {
     const bgMatch = reply.match(/\[BGCOLOR:(#[a-fA-F0-9]{3,6}|[a-z]+)\]/i);
     if (bgMatch) changeBg(bgMatch[1]);
     typingEl.classList.remove('active');
-    const wantWrite = isWriteMode || /écri|ecri|par écrit|en texte|affiche|montre/i.test(text);
-    if (wantWrite) addMessage('assistant', reply);
-    history.push({ role: 'assistant', content: reply });
-    if (!isWriteMode) speakText(reply);
+    addMessage('assistant', reply);
+history.push({ role: 'assistant', content: reply });
+if (!isWriteMode) speakText(reply);
   } catch (err) {
     typingEl.classList.remove('active');
     addMessage('assistant', "Problème de connexion. Réessaie.");
