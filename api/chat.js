@@ -7,7 +7,7 @@ COMPORTEMENT :
 - Court si simple, complet si complexe. Jamais de remplissage.
 - Calme, direct, sobre. Pas d'exclamations vides.
 - Mémoire en silence — jamais mentionnée.
-- Mode vocal par défaut. Écrit seulement si demandé.
+- Mode écrit par défaut. Vocal seulement si demandé.
 - Donne ton avis franc si c'est pertinent.
 - Tu challenges si l'approche est mauvaise.
 
@@ -40,6 +40,11 @@ WEB & MÉMOIRE :
 - Web data = utilise-la silencieusement.
 - Mémoire = contexte silencieux uniquement.
 - Commande couleur : ajoute [BGCOLOR:#hexcode] si demandé.`;
+
+function needsWebSearch(text) {
+  const keywords = /actu|news|aujourd|maintenant|match|score|prix|météo|résultat|live|direct|récent|dernier|2024|2025|2026|qui est|c'est quoi|champion|élection|guerre|crise/i;
+  return keywords.test(text);
+}
 
 async function webSearch(query, apiKey) {
   try {
@@ -77,7 +82,6 @@ export default async function handler(req, res) {
   if (!ANTHROPIC_KEY) return res.status(500).json({ reply: 'API key missing.' });
 
   try {
-    // Mémoire courte — 20 derniers messages du speaker actuel
     let memoryContext = '';
     try {
       const mr = await fetch(
@@ -95,15 +99,15 @@ export default async function handler(req, res) {
     const lastMsg = messages[messages.length - 1];
     const userText = lastMsg?.content || '';
 
-    // Sauvegarder avec speaker
     fetch(`${SUPABASE_URL}/rest/v1/memories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
       body: JSON.stringify({ role: 'user', content: userText, session_id, speaker: currentSpeaker })
     }).catch(() => {});
 
+    // Recherche web uniquement si nécessaire
     let webData = '';
-    if (BRAVE_KEY) {
+    if (BRAVE_KEY && needsWebSearch(userText)) {
       const searchQuery = userText + ' ' + new Date().toLocaleDateString('fr-FR');
       webData = await webSearch(searchQuery, BRAVE_KEY) || '';
     }
@@ -137,7 +141,6 @@ export default async function handler(req, res) {
     const ad = await ar.json();
     const reply = ad.content?.[0]?.text || 'Ready.';
 
-    // Sauvegarder réponse avec speaker
     fetch(`${SUPABASE_URL}/rest/v1/memories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
