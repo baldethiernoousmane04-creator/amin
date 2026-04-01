@@ -211,33 +211,32 @@ function speakText(text) {
 function startWakeWord() {
   if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-
   recognition = new SR();
   recognition.lang = 'fr-FR';
   recognition.continuous = true;
   recognition.interimResults = true;
+  recognition.maxAlternatives = 3;
 
   recognition.onresult = (e) => {
     for (let i = e.resultIndex; i < e.results.length; i++) {
-      const t = e.results[i][0].transcript.toLowerCase().trim();
+      const alts = Array.from({length: e.results[i].length}, (_, j) =>
+        e.results[i][j].transcript.toLowerCase().trim()
+      );
+      const anyText = alts.join(' ');
       if (!wakeActive) {
-        if (t.includes('amin')) {
+        if (/am[iîe]n|amino|hamid|aming/i.test(anyText)) {
           wakeActive = true;
           stopSpeaking();
           micBtn.classList.add('listening');
           inputEl.value = '';
         }
       } else {
-        if (e.results[i].isFinal) {
-          const cmd = e.results[i][0].transcript.trim();
-          if (cmd && !cmd.toLowerCase().includes('amin')) {
-            inputEl.value = cmd;
-            wakeActive = false;
-            micBtn.classList.remove('listening');
-            sendMessage();
-          } else {
-            inputEl.value = '';
-          }
+        const txt = e.results[i][0].transcript.trim();
+        if (e.results[i].isFinal && txt && !/am[iîe]n/i.test(txt)) {
+          inputEl.value = txt;
+          wakeActive = false;
+          micBtn.classList.remove('listening');
+          sendMessage();
         }
       }
     }
@@ -246,14 +245,14 @@ function startWakeWord() {
   recognition.onend = () => {
     wakeActive = false;
     micBtn.classList.remove('listening');
-    setTimeout(() => { try { recognition.start(); } catch(e) {} }, 500);
+    setTimeout(() => { try { recognition.start(); } catch(e) {} }, 300);
   };
 
   recognition.onerror = (e) => {
-    if (e.error !== 'aborted') {
+    if (e.error !== 'aborted' && e.error !== 'no-speech') {
       wakeActive = false;
       micBtn.classList.remove('listening');
-      setTimeout(() => { try { recognition.start(); } catch(err) {} }, 1000);
+      setTimeout(() => { try { recognition.start(); } catch(err) {} }, 800);
     }
   };
 
