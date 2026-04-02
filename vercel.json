@@ -4,12 +4,14 @@
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "api/chat.js", "use": "@vercel/node" },
     { "src": "api/weather.js", "use": "@vercel/node" },
-    { "src": "api/upload.js", "use": "@vercel/node" }
+    { "src": "api/upload.js", "use": "@vercel/node" },
+    { "src": "api/pc.js", "use": "@vercel/node" }
   ],
   "routes": [
     { "src": "/api/chat", "dest": "/api/chat.js" },
     { "src": "/api/weather", "dest": "/api/weather.js" },
     { "src": "/api/upload", "dest": "/api/upload.js" },
+    { "src": "/api/pc", "dest": "/api/pc.js" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
