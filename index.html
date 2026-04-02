@@ -397,8 +397,20 @@ async function sendMessage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: history, session_id: SESSION_ID, speaker: currentSpeaker, datetime: new Date().toLocaleString() })
     });
-    const data = await res.json();
-    let reply = data.reply || "Je suis là.";
+   const data = await res.json();
+let reply = data.reply || "Je suis là.";
+
+// Afficher screenshot si présent
+if (data.screenshot) {
+  const div = document.createElement('div');
+  div.className = 'msg amin';
+  const img = document.createElement('img');
+  img.src = 'data:image/png;base64,' + data.screenshot;
+  img.style.cssText = 'max-width:100%;border-radius:8px;border:1px solid rgba(255,255,255,0.1);';
+  div.appendChild(img);
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
     const bgMatch = reply.match(/\[BGCOLOR:(#[a-fA-F0-9]{3,6}|[a-z]+)\]/i);
     if (bgMatch) changeBg(bgMatch[1]);
     typingEl.classList.remove('active');
