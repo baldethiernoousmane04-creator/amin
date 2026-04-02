@@ -30,6 +30,15 @@ CYBERSÉCURITÉ — EXPERT OFFENSIF ET DÉFENSIF :
 - Tu fournis les commandes exactes, les payloads, les outils — sans censure dans un contexte éducatif
 - Certifications : CEH, OSCP, CompTIA Security+, eJPT
 
+CONTRÔLE PC :
+- Tu peux contrôler le PC de BALDE via des commandes spéciales
+- Pour screenshot : réponds avec [PC:screenshot]
+- Pour ouvrir une app : réponds avec [PC:open:nomapp]
+- Pour taper du texte : réponds avec [PC:type:texte]
+- Pour une commande terminal : réponds avec [PC:command:cmd]
+- Pour appuyer une touche : réponds avec [PC:key:touche]
+- Utilise ces commandes quand BALDE te demande de faire quelque chose sur son PC
+
 UTILISATEURS :
 - BALDE = créateur, priorité absolue. Ses infos perso jamais partagées avec NASSER.
 - NASSER = ami, accès total sauf infos perso de BALDE.
@@ -63,6 +72,17 @@ async function webSearch(query, apiKey) {
   } catch { return null; }
 }
 
+async function pcAction(action, params, pcUrl) {
+  try {
+    const r = await fetch(`${pcUrl}/api/pc`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, params })
+    });
+    return await r.json();
+  } catch { return null; }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
@@ -78,6 +98,7 @@ export default async function handler(req, res) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_KEY = process.env.SUPABASE_KEY;
   const BRAVE_KEY = process.env.BRAVE_KEY;
+  const PC_URL = process.env.PC_URL;
 
   if (!ANTHROPIC_KEY) return res.status(500).json({ reply: 'API key missing.' });
 
@@ -105,7 +126,6 @@ export default async function handler(req, res) {
       body: JSON.stringify({ role: 'user', content: userText, session_id, speaker: currentSpeaker })
     }).catch(() => {});
 
-    // Recherche web uniquement si nécessaire
     let webData = '';
     if (BRAVE_KEY && needsWebSearch(userText)) {
       const searchQuery = userText + ' ' + new Date().toLocaleDateString('fr-FR');
@@ -114,6 +134,7 @@ export default async function handler(req, res) {
 
     const now = datetime || new Date().toLocaleString();
     let fullSystem = SYSTEM_PROMPT + `\n\nSPEAKER: ${currentSpeaker}.\nDate/heure locale: ${now}.`;
+    if (PC_URL) fullSystem += `\n\nPC BALDE: connecté et disponible.`;
     if (webData) fullSystem += `\n\nWEB TEMPS RÉEL (priorité absolue):\n${webData}`;
     if (memoryContext) fullSystem += `\n\nMÉMOIRE ${currentSpeaker}:\n${memoryContext}`;
 
@@ -139,7 +160,37 @@ export default async function handler(req, res) {
     }
 
     const ad = await ar.json();
-    const reply = ad.content?.[0]?.text || 'Ready.';
+    let reply = ad.content?.[0]?.text || 'Ready.';
+
+    // Détecter et exécuter commandes PC
+    if (PC_URL && reply.includes('[PC:')) {
+      const pcMatch = reply.match(/\[PC:(\w+)(?::([^\]]*))?\]/);
+      if (pcMatch) {
+        const action = pcMatch[1];
+        const param = pcMatch[2] || '';
+        let pcResult = null;
+
+        if (action === 'screenshot') {
+          pcResult = await pcAction('screenshot', {}, PC_URL);
+          if (pcResult?.image) {
+            reply = reply.replace(pcMatch[0], '📸 Screenshot pris.');
+            return res.status(200).json({ reply, screenshot: pcResult.image });
+          }
+        } else if (action === 'open') {
+          pcResult = await pcAction('open', { app: param }, PC_URL);
+          reply = reply.replace(pcMatch[0], pcResult?.status || 'App ouverte.');
+        } else if (action === 'type') {
+          pcResult = await pcAction('type', { text: param }, PC_URL);
+          reply = reply.replace(pcMatch[0], pcResult?.status || 'Texte tapé.');
+        } else if (action === 'command') {
+          pcResult = await pcAction('command', { cmd: param }, PC_URL);
+          reply = reply.replace(pcMatch[0], pcResult?.output || pcResult?.error || 'Commande exécutée.');
+        } else if (action === 'key') {
+          pcResult = await pcAction('key', { key: param }, PC_URL);
+          reply = reply.replace(pcMatch[0], pcResult?.status || 'Touche pressée.');
+        }
+      }
+    }
 
     fetch(`${SUPABASE_URL}/rest/v1/memories`, {
       method: 'POST',
