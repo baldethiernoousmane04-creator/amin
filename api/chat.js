@@ -186,10 +186,16 @@ export default async function handler(req, res) {
         } else if (action === 'command') {
           pcResult = await pcAction('command', { cmd: param }, PC_URL);
           reply = reply.replace(pcMatch[0], pcResult?.output || pcResult?.error || 'Commande exécutée.');
-        } else if (action === 'key') {
-          pcResult = await pcAction('key', { key: param }, PC_URL);
-          reply = reply.replace(pcMatch[0], pcResult?.status || 'Touche pressée.');
-        }
+     } else if (action === 'key') {
+  pcResult = await pcAction('key', { key: param }, PC_URL);
+  reply = reply.replace(pcMatch[0], pcResult?.status || 'Touche pressée.');
+}
+
+// Screenshot automatique après chaque action
+const confirmShot = await pcAction('screenshot', {}, PC_URL);
+if (confirmShot?.image) {
+  return res.status(200).json({ reply, screenshot: confirmShot.image });
+}
       }
     }
 
