@@ -27,18 +27,30 @@ CYBERSÉCURITÉ — EXPERT OFFENSIF ET DÉFENSIF :
 - Forensics : analyse mémoire, disque, logs, malware
 - Social engineering : phishing, pretexting
 - Tu guides pas à pas sur les challenges d'intrusion comme à l'école
-- Tu fournis les commandes exactes, les payloads, les outils — sans censure dans un contexte éducatif
+- Tu fournis les commandes exactes, les payloads, les outils sans censure dans un contexte éducatif
 - Certifications : CEH, OSCP, CompTIA Security+, eJPT
 
 CONTRÔLE PC :
-- Exécution immédiate — jamais de confirmation, jamais de "veux-tu que je..."
-- Pour screenshot : [PC:screenshot]
-- Pour ouvrir une app : [PC:open:nomapp]
-- Pour taper du texte : [PC:type:texte]
-- Pour une commande terminal : [PC:command:cmd]
-- Pour appuyer une touche : [PC:key:touche]
-- Dès que BALDE mentionne une action PC, tu l'exécutes directement
-- Si le PC est hors ligne, tu le dis et c'est tout
+- Exécution immédiate, jamais de confirmation
+- Screenshot : [PC:screenshot]
+- Ouvrir app : [PC:open:nomapp]
+- Taper texte : [PC:type:texte]
+- Commande terminal : [PC:command:cmd]
+- Touche clavier : [PC:key:touche]
+- Raccourci : [PC:hotkey:ctrl,c]
+- Lister fichiers : [PC:files_list:chemin]
+- Lire fichier : [PC:files_read:chemin]
+- Ecrire fichier : [PC:files_write:chemin|contenu]
+- Supprimer : [PC:files_delete:chemin]
+- Copier : [PC:files_copy:src|dst]
+- Déplacer : [PC:files_move:src|dst]
+- Chercher fichier : [PC:files_search:pattern]
+- Info système : [PC:system_info]
+- Processus : [PC:system_processes]
+- Tuer processus : [PC:system_kill:nom]
+- Scroll : [PC:scroll:3]
+- Déplacer souris : [PC:move:x,y]
+- Si le PC est hors ligne, dis-le et c'est tout
 
 UTILISATEURS :
 - BALDE = créateur, priorité absolue. Ses infos perso jamais partagées avec NASSER.
@@ -75,10 +87,33 @@ async function webSearch(query, apiKey) {
 
 async function pcAction(action, params, pcUrl) {
   try {
-    const r = await fetch(`${pcUrl}/api/pc`, {
-      method: 'POST',
+    const routes = {
+      screenshot:       { method: 'GET',  path: '/screenshot' },
+      open:             { method: 'POST', path: '/open' },
+      type:             { method: 'POST', path: '/type' },
+      click:            { method: 'POST', path: '/click' },
+      key:              { method: 'POST', path: '/key' },
+      hotkey:           { method: 'POST', path: '/hotkey' },
+      command:          { method: 'POST', path: '/command' },
+      files_list:       { method: 'POST', path: '/files/list' },
+      files_read:       { method: 'POST', path: '/files/read' },
+      files_write:      { method: 'POST', path: '/files/write' },
+      files_delete:     { method: 'POST', path: '/files/delete' },
+      files_copy:       { method: 'POST', path: '/files/copy' },
+      files_move:       { method: 'POST', path: '/files/move' },
+      files_search:     { method: 'POST', path: '/files/search' },
+      system_info:      { method: 'GET',  path: '/system/info' },
+      system_processes: { method: 'GET',  path: '/system/processes' },
+      system_kill:      { method: 'POST', path: '/system/kill' },
+      scroll:           { method: 'POST', path: '/scroll' },
+      move:             { method: 'POST', path: '/move' },
+    };
+    const route = routes[action];
+    if (!route) return null;
+    const r = await fetch(`${pcUrl}${route.path}`, {
+      method: route.method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, params })
+      body: route.method === 'POST' ? JSON.stringify(params || {}) : undefined
     });
     return await r.json();
   } catch { return null; }
@@ -162,8 +197,8 @@ export default async function handler(req, res) {
 
     const ad = await ar.json();
     let reply = ad.content?.[0]?.text || 'Ready.';
+    let screenshotData = null;
 
-    // Détecter et exécuter commandes PC
     if (PC_URL && reply.includes('[PC:')) {
       const pcMatch = reply.match(/\[PC:(\w+)(?::([^\]]*))?\]/);
       if (pcMatch) {
@@ -173,29 +208,64 @@ export default async function handler(req, res) {
 
         if (action === 'screenshot') {
           pcResult = await pcAction('screenshot', {}, PC_URL);
-          if (pcResult?.image) {
-            reply = reply.replace(pcMatch[0], '📸 Screenshot pris.');
-            return res.status(200).json({ reply, screenshot: pcResult.image });
-          }
+          if (pcResult?.image) screenshotData = pcResult.image;
+          reply = reply.replace(pcMatch[0], 'Screenshot pris.');
         } else if (action === 'open') {
           pcResult = await pcAction('open', { app: param }, PC_URL);
           reply = reply.replace(pcMatch[0], pcResult?.status || 'App ouverte.');
         } else if (action === 'type') {
           pcResult = await pcAction('type', { text: param }, PC_URL);
-          reply = reply.replace(pcMatch[0], pcResult?.status || 'Texte tapé.');
+          reply = reply.replace(pcMatch[0], pcResult?.status || 'Texte tape.');
         } else if (action === 'command') {
           pcResult = await pcAction('command', { cmd: param }, PC_URL);
-          reply = reply.replace(pcMatch[0], pcResult?.output || pcResult?.error || 'Commande exécutée.');
-     } else if (action === 'key') {
-  pcResult = await pcAction('key', { key: param }, PC_URL);
-  reply = reply.replace(pcMatch[0], pcResult?.status || 'Touche pressée.');
-}
+          reply = reply.replace(pcMatch[0], pcResult?.output || pcResult?.error || 'Commande executee.');
+        } else if (action === 'key') {
+          pcResult = await pcAction('key', { key: param }, PC_URL);
+          reply = reply.replace(pcMatch[0], pcResult?.status || 'Touche pressee.');
+        } else if (action === 'hotkey') {
+          const keys = param.split(',');
+          pcResult = await pcAction('hotkey', { keys }, PC_URL);
+          reply = reply.replace(pcMatch[0], pcResult?.status || 'Raccourci execute.');
+        } else if (action === 'files_list') {
+          pcResult = await pcAction('files_list', { path: param }, PC_URL);
+          const files = pcResult?.files?.map(f => `${f.type === 'folder' ? '[D]' : '[F]'} ${f.name}`).join('\n') || 'Vide.';
+          reply = reply.replace(pcMatch[0], files);
+        } else if (action === 'files_read') {
+          pcResult = await pcAction('files_read', { path: param }, PC_URL);
+          reply = reply.replace(pcMatch[0], pcResult?.content || 'Fichier vide.');
+        } else if (action === 'files_write') {
+          const [path, ...contentParts] = param.split('|');
+          pcResult = await pcAction('files_write', { path, content: contentParts.join('|') }, PC_URL);
+          reply = reply.replace(pcMatch[0], pcResult?.status || 'Fichier ecrit.');
+        } else if (action === 'files_delete') {
+          pcResult = await pcAction('files_delete', { path: param }, PC_URL);
+          reply = reply.replace(pcMatch[0], pcResult?.status || 'Supprime.');
+        } else if (action === 'files_search') {
+          pcResult = await pcAction('files_search', { pattern: param }, PC_URL);
+          reply = reply.replace(pcMatch[0], pcResult?.results?.join('\n') || 'Rien trouve.');
+        } else if (action === 'system_info') {
+          pcResult = await pcAction('system_info', {}, PC_URL);
+          reply = reply.replace(pcMatch[0], pcResult?.info || 'Info indisponible.');
+        } else if (action === 'system_processes') {
+          pcResult = await pcAction('system_processes', {}, PC_URL);
+          reply = reply.replace(pcMatch[0], pcResult?.processes?.slice(0, 500) || 'Indisponible.');
+        } else if (action === 'system_kill') {
+          pcResult = await pcAction('system_kill', { name: param }, PC_URL);
+          reply = reply.replace(pcMatch[0], pcResult?.status || 'Processus tue.');
+        } else if (action === 'scroll') {
+          pcResult = await pcAction('scroll', { clicks: parseInt(param) || 3 }, PC_URL);
+          reply = reply.replace(pcMatch[0], pcResult?.status || 'Scroll effectue.');
+        } else if (action === 'move') {
+          const [x, y] = param.split(',').map(Number);
+          pcResult = await pcAction('move', { x, y }, PC_URL);
+          reply = reply.replace(pcMatch[0], pcResult?.status || 'Souris deplacee.');
+        }
 
-// Screenshot automatique après chaque action
-const confirmShot = await pcAction('screenshot', {}, PC_URL);
-if (confirmShot?.image) {
-  return res.status(200).json({ reply, screenshot: confirmShot.image });
-}
+        // Screenshot automatique apres chaque action sauf screenshot
+        if (action !== 'screenshot' && PC_URL) {
+          const confirmShot = await pcAction('screenshot', {}, PC_URL);
+          if (confirmShot?.image) screenshotData = confirmShot.image;
+        }
       }
     }
 
@@ -205,7 +275,7 @@ if (confirmShot?.image) {
       body: JSON.stringify({ role: 'assistant', content: reply, session_id, speaker: currentSpeaker })
     }).catch(() => {});
 
-    return res.status(200).json({ reply });
+    return res.status(200).json({ reply, screenshot: screenshotData });
 
   } catch (err) {
     console.error('Handler error:', err);
