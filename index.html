@@ -9,6 +9,10 @@
 <title>AMIN</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<!-- Librairies génération fichiers -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   :root { --bg: #000; --surface: rgba(255,255,255,0.05); --border: rgba(255,255,255,0.08); --text: #fff; --text-dim: #555; }
@@ -48,10 +52,31 @@
   .msg-bubble p { margin: 0 0 6px 0; }
   .msg-bubble ul, .msg-bubble ol { padding-left: 16px; margin: 4px 0; }
   .msg-bubble code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  .msg-bubble pre { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; overflow-x: auto; margin: 6px 0; }
+  .msg-bubble pre code { background: none; padding: 0; font-size: 12px; }
   .msg.amin .msg-bubble { background: rgba(255,255,255,0.04); color: var(--text); border-bottom-left-radius: 4px; border: 1px solid rgba(255,255,255,0.07); }
   .msg.user .msg-bubble { background: rgba(255,255,255,0.07); color: var(--text); border-bottom-right-radius: 4px; border: 1px solid rgba(255,255,255,0.1); white-space: pre-wrap; }
+
+  /* Bubble fichier importé */
   .file-bubble { max-width: 85%; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); font-size: 12px; color: #888; display: flex; align-items: center; gap: 8px; }
   .file-bubble span { color: #fff; font-size: 13px; }
+
+  /* Carte de téléchargement fichier généré */
+  .file-card { max-width: 85%; margin-top: 6px; padding: 10px 14px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; gap: 10px; }
+  .file-card-icon { font-size: 20px; flex-shrink: 0; }
+  .file-card-info { flex: 1; min-width: 0; }
+  .file-card-name { font-size: 13px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file-card-ext { font-size: 10px; color: #555; margin-top: 2px; text-transform: uppercase; letter-spacing: 1px; }
+  .file-card-btn { flex-shrink: 0; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; font-size: 11px; padding: 5px 10px; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+  .file-card-btn:hover { background: rgba(255,255,255,0.18); }
+  .file-card-btn:active { transform: scale(0.96); }
+
+  /* Drop zone overlay */
+  .drop-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; align-items: center; justify-content: center; flex-direction: column; gap: 12px; border: 2px dashed rgba(255,255,255,0.3); }
+  .drop-overlay.active { display: flex; }
+  .drop-overlay p { color: #fff; font-size: 16px; font-weight: 600; letter-spacing: 1px; }
+  .drop-overlay small { color: #555; font-size: 11px; }
+
   .typing { display: none; align-items: center; gap: 6px; padding: 0 16px 8px; flex-shrink: 0; }
   .typing.active { display: flex; }
   .typing-text { font-size: 11px; color: var(--text-dim); }
@@ -112,13 +137,21 @@
     <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
       <svg width="16" height="16" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/></svg>
     </button>
-    <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.webp" onchange="handleFile(this)">
+    <!-- Accept TOUS les types de fichiers -->
+    <input type="file" id="fileInput" accept="*/*" onchange="handleFile(this)">
     <textarea id="input" placeholder="Parle ou écris à AMIN..." rows="1"></textarea>
     <button class="send" id="sendBtn" onclick="sendMessage()">
       <svg width="16" height="16" viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
     </button>
   </div>
 </div>
+
+<!-- Drop overlay -->
+<div class="drop-overlay" id="dropOverlay">
+  <p>📂 Dépose ton fichier ici</p>
+  <small>Tous types acceptés — code, PDF, Word, Excel, ZIP, images...</small>
+</div>
+
 <script>
 const SESSION_ID = 'session_' + Date.now();
 const messagesEl = document.getElementById('messages');
@@ -138,11 +171,300 @@ let isSpeaking = false;
 let isWriteMode = true;
 let currentSpeaker = 'BALDE';
 
-function setSpeaker(name) {
-  currentSpeaker = name;
-  speakerBadge.textContent = '· ' + name;
+// ============================================================
+// UTILITAIRES FICHIERS
+// ============================================================
+
+// Icônes par type de fichier
+function fileIcon(ext) {
+  const icons = {
+    py: '🐍', js: '📜', ts: '📘', html: '🌐', css: '🎨',
+    json: '📋', xml: '📋', yaml: '📋', csv: '📊', sql: '🗄️',
+    txt: '📄', md: '📝', sh: '⚙️', bat: '⚙️',
+    pdf: '📕', docx: '📘', xlsx: '📗', pptx: '📙',
+    zip: '📦', java: '☕', c: '🔧', cpp: '🔧',
+    dockerfile: '🐳', gitignore: '🔒',
+    png: '🖼️', jpg: '🖼️', jpeg: '🖼️', gif: '🖼️', webp: '🖼️',
+    mp3: '🎵', mp4: '🎬', wav: '🎵'
+  };
+  return icons[ext.toLowerCase()] || '📄';
 }
 
+// Détecter le type MIME
+function getMime(ext) {
+  const mimes = {
+    txt: 'text/plain', md: 'text/markdown', html: 'text/html',
+    css: 'text/css', js: 'application/javascript', py: 'text/x-python',
+    json: 'application/json', xml: 'application/xml', csv: 'text/csv',
+    yaml: 'text/yaml', sql: 'text/plain', sh: 'text/x-sh',
+    bat: 'text/plain', java: 'text/x-java', c: 'text/x-c',
+    cpp: 'text/x-c++', pdf: 'application/pdf',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    zip: 'application/zip'
+  };
+  return mimes[ext.toLowerCase()] || 'application/octet-stream';
+}
+
+// Télécharger un fichier généré par AMIN
+async function downloadFile(ext, filename, content) {
+  try {
+    let blob;
+    const extLow = ext.toLowerCase();
+
+    if (extLow === 'pdf') {
+      // Générer PDF avec jsPDF
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const lines = doc.splitTextToSize(atob(content), 180);
+      doc.setFont('helvetica');
+      doc.setFontSize(11);
+      doc.text(lines, 15, 20);
+      blob = doc.output('blob');
+
+    } else if (extLow === 'xlsx') {
+      // Générer Excel avec SheetJS
+      const decoded = atob(content);
+      const rows = decoded.split('\n').map(r => r.split(','));
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+      const out = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+      blob = new Blob([out], { type: getMime('xlsx') });
+
+    } else if (extLow === 'zip') {
+      // Déjà un zip base64
+      const binaryStr = atob(content);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+      blob = new Blob([bytes], { type: 'application/zip' });
+
+    } else if (extLow === 'docx') {
+      // Pour docx : on génère un fichier .txt avec le contenu markdown (vraie génération docx nécessite serveur)
+      // On télécharge en .txt pour l'instant, préfixé
+      const decoded = atob(content);
+      blob = new Blob([decoded], { type: 'text/plain' });
+      filename = filename.replace('.docx', '.txt');
+
+    } else {
+      // Fichiers texte/code : décode base64
+      let decoded;
+      try {
+        decoded = atob(content);
+      } catch(e) {
+        decoded = content; // contenu brut si pas base64
+      }
+      blob = new Blob([decoded], { type: getMime(extLow) });
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch(e) {
+    console.error('Download error:', e);
+  }
+}
+
+// Afficher les cartes de fichiers générés
+function showFileCards(files) {
+  if (!files || !files.length) return;
+  const container = document.createElement('div');
+  container.className = 'msg amin';
+  container.style.gap = '6px';
+  files.forEach(f => {
+    const card = document.createElement('div');
+    card.className = 'file-card';
+    card.innerHTML = `
+      <div class="file-card-icon">${fileIcon(f.ext)}</div>
+      <div class="file-card-info">
+        <div class="file-card-name">${f.name}</div>
+        <div class="file-card-ext">${f.ext} · généré par AMIN</div>
+      </div>
+      <button class="file-card-btn" onclick="downloadFile('${f.ext}','${f.name}','${f.content}')">⬇ Télécharger</button>
+    `;
+    container.appendChild(card);
+  });
+  messagesEl.appendChild(container);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+// ============================================================
+// IMPORT DE FICHIERS — tous types
+// ============================================================
+
+// Lire le contenu textuel d'un fichier
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = () => reject(new Error('Read failed'));
+    reader.readAsText(file);
+  });
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result.split(',')[1]);
+    reader.onerror = () => reject(new Error('Read failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+// Détecter si le fichier est lisible comme texte
+function isTextFile(filename) {
+  const textExts = ['txt','md','html','css','js','ts','py','java','c','cpp','h',
+    'json','xml','yaml','yml','csv','sql','sh','bat','dockerfile','gitignore',
+    'env','ini','cfg','conf','log','rs','go','rb','php','swift','kt'];
+  const ext = filename.split('.').pop().toLowerCase();
+  return textExts.includes(ext);
+}
+
+// Détecter si le fichier est une image
+function isImageFile(filename) {
+  const imgExts = ['png','jpg','jpeg','webp','gif','bmp','svg'];
+  const ext = filename.split('.').pop().toLowerCase();
+  return imgExts.includes(ext);
+}
+
+// Détecter si c'est un fichier binaire analysable via /api/upload
+function isUploadableFile(filename) {
+  const uploadExts = ['pdf','docx','xlsx','pptx','jpg','jpeg','png','webp','gif'];
+  const ext = filename.split('.').pop().toLowerCase();
+  return uploadExts.includes(ext);
+}
+
+async function handleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const maxSize = 20 * 1024 * 1024; // 20MB
+  if (file.size > maxSize) {
+    addMessage('assistant', 'Fichier trop lourd. Max 20MB.');
+    input.value = '';
+    return;
+  }
+
+  const question = inputEl.value.trim() || 'Analyse ce fichier et dis-moi ce que c\'est.';
+  inputEl.value = '';
+
+  // Afficher la bulle fichier importé
+  const div = document.createElement('div');
+  div.className = 'msg user';
+  const bubble = document.createElement('div');
+  bubble.className = 'file-bubble';
+  bubble.innerHTML = `${fileIcon(file.name.split('.').pop())} <span>${file.name}</span> <small style="color:#444;font-size:10px">${(file.size/1024).toFixed(0)}KB</small>`;
+  div.appendChild(bubble);
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  isLoading = true;
+  sendBtn.disabled = true;
+  typingEl.classList.add('active');
+
+  try {
+    let reply = '';
+
+    if (isTextFile(file.name)) {
+      // Lire comme texte et envoyer directement à AMIN via chat
+      const content = await readFileAsText(file);
+      const truncated = content.length > 8000 ? content.slice(0, 8000) + '\n\n[... tronqué ...]' : content;
+      const userMsg = `[Fichier: ${file.name}]\n\`\`\`\n${truncated}\n\`\`\`\n\n${question}`;
+      history.push({ role: 'user', content: userMsg });
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: history, session_id: SESSION_ID, speaker: currentSpeaker, datetime: new Date().toLocaleString() })
+      });
+      const data = await res.json();
+      reply = data.reply || 'Fichier analysé.';
+      if (data.files?.length) showFileCards(data.files);
+
+    } else if (file.name.endsWith('.zip')) {
+      // Décompresser et lister le contenu
+      const base64 = await readFileAsBase64(file);
+      const binaryStr = atob(base64);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+      const zip = await JSZip.loadAsync(bytes);
+      const fileList = Object.keys(zip.files).filter(n => !zip.files[n].dir);
+      let zipContent = `Archive ZIP: ${file.name}\n${fileList.length} fichiers:\n${fileList.join('\n')}`;
+      // Lire les fichiers texte dans le zip
+      const textFiles = fileList.filter(n => isTextFile(n)).slice(0, 3);
+      for (const tf of textFiles) {
+        const content = await zip.files[tf].async('string');
+        const trunc = content.length > 2000 ? content.slice(0, 2000) + '...' : content;
+        zipContent += `\n\n--- ${tf} ---\n${trunc}`;
+      }
+      const userMsg = `[ZIP: ${file.name}]\n${zipContent}\n\n${question}`;
+      history.push({ role: 'user', content: userMsg });
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: history, session_id: SESSION_ID, speaker: currentSpeaker, datetime: new Date().toLocaleString() })
+      });
+      const data = await res.json();
+      reply = data.reply || 'ZIP analysé.';
+      if (data.files?.length) showFileCards(data.files);
+
+    } else if (isUploadableFile(file.name)) {
+      // Envoyer à /api/upload (PDF, images, docx, xlsx)
+      const base64 = await readFileAsBase64(file);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file: base64, filename: file.name, question, speaker: currentSpeaker, datetime: new Date().toLocaleString() })
+      });
+      const data = await res.json();
+      reply = data.reply || 'Fichier analysé.';
+
+    } else {
+      // Fichier non reconnu : info générale
+      reply = `Fichier reçu : **${file.name}** (${(file.size/1024).toFixed(0)}KB). Ce type de fichier ne peut pas être lu directement. Dis-moi ce que tu veux faire avec.`;
+    }
+
+    typingEl.classList.remove('active');
+    addMessage('assistant', reply);
+    history.push({ role: 'assistant', content: reply });
+    if (!isWriteMode) speakText(reply);
+
+  } catch(err) {
+    typingEl.classList.remove('active');
+    addMessage('assistant', 'Erreur lecture fichier.');
+  }
+
+  isLoading = false;
+  sendBtn.disabled = false;
+  input.value = '';
+}
+
+// ============================================================
+// DRAG & DROP
+// ============================================================
+document.addEventListener('dragover', e => { e.preventDefault(); document.getElementById('dropOverlay').classList.add('active'); });
+document.addEventListener('dragleave', e => { if (!e.relatedTarget) document.getElementById('dropOverlay').classList.remove('active'); });
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  document.getElementById('dropOverlay').classList.remove('active');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    document.getElementById('fileInput').files = dt.files;
+    handleFile(document.getElementById('fileInput'));
+  }
+});
+
+// ============================================================
+// UI DE BASE
+// ============================================================
+function setSpeaker(name) { currentSpeaker = name; speakerBadge.textContent = '· ' + name; }
 function setMode(write) {
   isWriteMode = write;
   modeBadge.textContent = write ? 'ÉCRIT' : 'VOCAL';
@@ -151,13 +473,12 @@ function setMode(write) {
 
 function updateClock() {
   const now = new Date();
-  const h = String(now.getHours()).padStart(2, '0');
-  const m = String(now.getMinutes()).padStart(2, '0');
-  const s = String(now.getSeconds()).padStart(2, '0');
-  document.getElementById('clock').textContent = h + ':' + m + ':' + s;
+  document.getElementById('clock').textContent =
+    String(now.getHours()).padStart(2,'0') + ':' +
+    String(now.getMinutes()).padStart(2,'0') + ':' +
+    String(now.getSeconds()).padStart(2,'0');
 }
-setInterval(updateClock, 1000);
-updateClock();
+setInterval(updateClock, 1000); updateClock();
 
 async function loadWeather() {
   try {
@@ -166,16 +487,15 @@ async function loadWeather() {
     if (data.temp) document.getElementById('weather').textContent = 'Dakar ' + Math.round(data.temp) + '°C ' + data.desc;
   } catch(e) {}
 }
-loadWeather();
-setInterval(loadWeather, 600000);
+loadWeather(); setInterval(loadWeather, 600000);
 
 window.speechSynthesis.getVoices();
 window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 
 function getMaleVoice() {
   const voices = window.speechSynthesis.getVoices();
-  const maleNames = ['thomas', 'paul', 'nicolas', 'guillaume', 'jean', 'pierre', 'henri', 'claude', 'luca', 'reed', 'aaron', 'arthur'];
-  const femaleNames = ['amelie', 'camille', 'marie', 'lucie', 'alice', 'julie', 'victoria', 'sophie', 'emma', 'lea'];
+  const maleNames = ['thomas','paul','nicolas','guillaume','jean','pierre','henri','claude','luca','reed','aaron','arthur'];
+  const femaleNames = ['amelie','camille','marie','lucie','alice','julie','victoria','sophie','emma','lea'];
   let voice = voices.find(v => v.lang.startsWith('fr') && maleNames.some(n => v.name.toLowerCase().includes(n)));
   if (!voice) voice = voices.find(v => v.lang.startsWith('fr') && !femaleNames.some(n => v.name.toLowerCase().includes(n)));
   if (!voice) voice = voices.find(v => v.lang.startsWith('fr'));
@@ -183,21 +503,14 @@ function getMaleVoice() {
 }
 
 function cleanText(text) {
-  return text
-    .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
-    .replace(/[\u{2600}-\u{27BF}]/gu, '')
-    .replace(/\*\*/g, '').replace(/\*/g, '')
-    .replace(/#{1,6}\s/g, '')
-    .replace(/\[BGCOLOR:[^\]]*\]/g, '')
-    .replace(/[-•]/g, ',')
-    .trim();
+  return text.replace(/[\u{1F000}-\u{1FFFF}]/gu,'').replace(/[\u{2600}-\u{27BF}]/gu,'')
+    .replace(/\*\*/g,'').replace(/\*/g,'').replace(/#{1,6}\s/g,'')
+    .replace(/\[BGCOLOR:[^\]]*\]/g,'').replace(/[-•]/g,',').trim();
 }
 
 function stopSpeaking() {
-  window.speechSynthesis.cancel();
-  isSpeaking = false;
-  stopBtn.classList.remove('active');
-  voiceIndicator.classList.remove('active');
+  window.speechSynthesis.cancel(); isSpeaking = false;
+  stopBtn.classList.remove('active'); voiceIndicator.classList.remove('active');
 }
 
 function speakText(text) {
@@ -206,10 +519,7 @@ function speakText(text) {
   const clean = cleanText(text);
   if (!clean) return;
   const utter = new SpeechSynthesisUtterance(clean);
-  utter.lang = 'fr-FR';
-  utter.rate = 1.0;
-  utter.pitch = 0.8;
-  utter.volume = 1;
+  utter.lang = 'fr-FR'; utter.rate = 1.0; utter.pitch = 0.8; utter.volume = 1;
   const voice = getMaleVoice();
   if (voice) utter.voice = voice;
   utter.onstart = () => { isSpeaking = true; stopBtn.classList.add('active'); voiceIndicator.classList.add('active'); };
@@ -222,121 +532,41 @@ function startWakeWord() {
   if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
-  recognition.lang = 'fr-FR';
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.maxAlternatives = 3;
-
+  recognition.lang = 'fr-FR'; recognition.continuous = true;
+  recognition.interimResults = true; recognition.maxAlternatives = 3;
   recognition.onresult = (e) => {
     for (let i = e.resultIndex; i < e.results.length; i++) {
-      const alts = Array.from({length: e.results[i].length}, (_, j) =>
-        e.results[i][j].transcript.toLowerCase().trim()
-      );
+      const alts = Array.from({length: e.results[i].length}, (_,j) => e.results[i][j].transcript.toLowerCase().trim());
       const anyText = alts.join(' ');
       if (!wakeActive) {
         if (/am[iîe]n|amino|hamid|aming/i.test(anyText)) {
-          wakeActive = true;
-          stopSpeaking();
-          micBtn.classList.add('listening');
-          inputEl.value = '';
+          wakeActive = true; stopSpeaking(); micBtn.classList.add('listening'); inputEl.value = '';
         }
       } else {
         const txt = e.results[i][0].transcript.trim();
         if (e.results[i].isFinal && txt && !/am[iîe]n/i.test(txt)) {
-          inputEl.value = txt;
-          wakeActive = false;
-          micBtn.classList.remove('listening');
-          sendMessage();
+          inputEl.value = txt; wakeActive = false; micBtn.classList.remove('listening'); sendMessage();
         }
       }
     }
   };
-
   recognition.onend = () => {
-    wakeActive = false;
-    micBtn.classList.remove('listening');
+    wakeActive = false; micBtn.classList.remove('listening');
     setTimeout(() => { try { recognition.start(); } catch(e) {} }, 300);
   };
-
   recognition.onerror = (e) => {
     if (e.error !== 'aborted' && e.error !== 'no-speech') {
-      wakeActive = false;
-      micBtn.classList.remove('listening');
+      wakeActive = false; micBtn.classList.remove('listening');
       setTimeout(() => { try { recognition.start(); } catch(err) {} }, 800);
     }
   };
-
   try { recognition.start(); } catch(e) {}
 }
 
 function toggleMic() {
   if (!recognition) return;
-  if (micBtn.classList.contains('listening')) {
-    wakeActive = false;
-    micBtn.classList.remove('listening');
-  } else {
-    stopSpeaking();
-    wakeActive = true;
-    micBtn.classList.add('listening');
-  }
-}
-
-async function handleFile(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const maxSize = 10 * 1024 * 1024;
-  if (file.size > maxSize) {
-    addMessage('assistant', 'Fichier trop lourd. Max 10MB.');
-    return;
-  }
-
-  const div = document.createElement('div');
-  div.className = 'msg user';
-  const bubble = document.createElement('div');
-  bubble.className = 'file-bubble';
-  bubble.innerHTML = `📄 <span>${file.name}</span>`;
-  div.appendChild(bubble);
-  messagesEl.appendChild(div);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-
-  const question = inputEl.value.trim() || 'Analyse ce document et résume-le.';
-  inputEl.value = '';
-
-  isLoading = true;
-  sendBtn.disabled = true;
-  typingEl.classList.add('active');
-
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    const base64 = e.target.result.split(',')[1];
-    try {
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          file: base64,
-          filename: file.name,
-          question,
-          speaker: currentSpeaker,
-          datetime: new Date().toLocaleString()
-        })
-      });
-      const data = await res.json();
-      const reply = data.reply || 'Impossible de lire ce fichier.';
-      typingEl.classList.remove('active');
-      addMessage('assistant', reply);
-      history.push({ role: 'user', content: `[Fichier: ${file.name}] ${question}` });
-      history.push({ role: 'assistant', content: reply });
-      if (!isWriteMode) speakText(reply);
-    } catch(err) {
-      typingEl.classList.remove('active');
-      addMessage('assistant', 'Erreur lecture fichier.');
-    }
-    isLoading = false;
-    sendBtn.disabled = false;
-  };
-  reader.readAsDataURL(file);
-  input.value = '';
+  if (micBtn.classList.contains('listening')) { wakeActive = false; micBtn.classList.remove('listening'); }
+  else { stopSpeaking(); wakeActive = true; micBtn.classList.add('listening'); }
 }
 
 function addMessage(role, text) {
@@ -345,7 +575,7 @@ function addMessage(role, text) {
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
   if (role === 'assistant') {
-    const clean = text.replace(/\[BGCOLOR:[^\]]*\]/g, '').trim();
+    const clean = text.replace(/\[BGCOLOR:[^\]]*\]/g,'').trim();
     bubble.innerHTML = marked.parse(clean);
   } else {
     bubble.textContent = text;
@@ -359,13 +589,11 @@ function changeBg(color) {
   document.body.style.transition = 'background 1s ease';
   document.body.style.background = color;
   const temp = document.createElement('div');
-  temp.style.color = color;
-  document.body.appendChild(temp);
-  const rgb = getComputedStyle(temp).color;
-  document.body.removeChild(temp);
+  temp.style.color = color; document.body.appendChild(temp);
+  const rgb = getComputedStyle(temp).color; document.body.removeChild(temp);
   const match = rgb.match(/\d+/g);
   if (match) {
-    const brightness = (parseInt(match[0]) * 299 + parseInt(match[1]) * 587 + parseInt(match[2]) * 114) / 1000;
+    const brightness = (parseInt(match[0])*299 + parseInt(match[1])*587 + parseInt(match[2])*114) / 1000;
     const textColor = brightness > 128 ? '#000' : '#fff';
     document.documentElement.style.setProperty('--text', textColor);
     document.documentElement.style.setProperty('--text-dim', brightness > 128 ? '#444' : '#555');
@@ -375,11 +603,8 @@ function changeBg(color) {
 async function sendMessage() {
   const text = inputEl.value.trim();
   if (!text || isLoading) return;
-  inputEl.value = '';
-  inputEl.style.height = 'auto';
-  isLoading = true;
-  sendBtn.disabled = true;
-  stopSpeaking();
+  inputEl.value = ''; inputEl.style.height = 'auto';
+  isLoading = true; sendBtn.disabled = true; stopSpeaking();
 
   if (/ici\s+balde/i.test(text)) setSpeaker('BALDE');
   else if (/ici\s+nasser/i.test(text)) setSpeaker('NASSER');
@@ -397,43 +622,39 @@ async function sendMessage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: history, session_id: SESSION_ID, speaker: currentSpeaker, datetime: new Date().toLocaleString() })
     });
- const data = await res.json();
-let reply = data.reply || "Je suis là.";
+    const data = await res.json();
+    let reply = data.reply || "Je suis là.";
 
-if (data.screenshot) {
-  const div = document.createElement('div');
-  div.className = 'msg amin';
-  const img = document.createElement('img');
-  img.src = 'data:image/png;base64,' + data.screenshot;
-  img.style.cssText = 'max-width:100%;border-radius:8px;border:1px solid rgba(255,255,255,0.1);margin-top:6px;';
-  div.appendChild(img);
-  messagesEl.appendChild(div);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-}
+    // Screenshot
+    if (data.screenshot) {
+      const sdiv = document.createElement('div');
+      sdiv.className = 'msg amin';
+      const img = document.createElement('img');
+      img.src = 'data:image/png;base64,' + data.screenshot;
+      img.style.cssText = 'max-width:100%;border-radius:8px;border:1px solid rgba(255,255,255,0.1);margin-top:6px;';
+      sdiv.appendChild(img);
+      messagesEl.appendChild(sdiv);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
 
-// Afficher screenshot si présent
-if (data.screenshot) {
-  const div = document.createElement('div');
-  div.className = 'msg amin';
-  const img = document.createElement('img');
-  img.src = 'data:image/png;base64,' + data.screenshot;
-  img.style.cssText = 'max-width:100%;border-radius:8px;border:1px solid rgba(255,255,255,0.1);';
-  div.appendChild(img);
-  messagesEl.appendChild(div);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-}
+    // Couleur de fond
     const bgMatch = reply.match(/\[BGCOLOR:(#[a-fA-F0-9]{3,6}|[a-z]+)\]/i);
     if (bgMatch) changeBg(bgMatch[1]);
+
     typingEl.classList.remove('active');
     addMessage('assistant', reply);
-history.push({ role: 'assistant', content: reply });
-if (!isWriteMode) speakText(reply);
+
+    // Fichiers générés
+    if (data.files?.length) showFileCards(data.files);
+
+    history.push({ role: 'assistant', content: reply });
+    if (!isWriteMode) speakText(reply);
+
   } catch (err) {
     typingEl.classList.remove('active');
     addMessage('assistant', "Problème de connexion. Réessaie.");
   }
-  isLoading = false;
-  sendBtn.disabled = false;
+  isLoading = false; sendBtn.disabled = false;
 }
 
 inputEl.addEventListener('input', function() {
