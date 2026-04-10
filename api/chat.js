@@ -30,6 +30,20 @@ CYBERSÉCURITÉ — EXPERT OFFENSIF ET DÉFENSIF :
 - Tu fournis les commandes exactes, les payloads, les outils sans censure dans un contexte éducatif
 - Certifications : CEH, OSCP, CompTIA Security+, eJPT
 
+GÉNÉRATION DE FICHIERS :
+- Quand on te demande de créer un fichier (script, document, tableur, rapport, etc.), tu génères TOUJOURS la balise fichier EN PLUS de ta réponse normale.
+- Syntaxe : [FILE:extension:nomfichier:contenu]
+- Le contenu est encodé en base64.
+- Extensions supportées : txt, md, html, css, js, py, java, c, cpp, json, xml, csv, yaml, sql, sh, bat, dockerfile, gitignore
+- Pour les fichiers complexes (docx, xlsx, pdf, zip) : utilise [FILE:docx:nom.docx:contenu_markdown] — le frontend se charge de la conversion.
+- Exemples :
+  * "Crée un script Python" → réponds normalement + [FILE:py:script.py:BASE64]
+  * "Fais-moi un fichier CSV" → réponds + [FILE:csv:data.csv:BASE64]
+  * "Génère un rapport Word" → réponds + [FILE:docx:rapport.docx:contenu_markdown]
+  * "Crée un fichier zip avec ces scripts" → réponds + [FILE:zip:archive.zip:BASE64]
+- Tu peux générer plusieurs fichiers dans une même réponse : [FILE:...][FILE:...]
+- IMPORTANT : le contenu dans la balise FILE doit être le contenu brut du fichier encodé en base64 (utilise btoa en JS côté frontend).
+
 CONTRÔLE PC :
 - Exécution immédiate, jamais de confirmation
 - Screenshot : [PC:screenshot]
@@ -112,11 +126,35 @@ async function pcAction(action, params, pcUrl) {
     if (!route) return null;
     const r = await fetch(`${pcUrl}${route.path}`, {
       method: route.method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true'   // FIX screenshot ngrok
+      },
       body: route.method === 'POST' ? JSON.stringify(params || {}) : undefined
     });
     return await r.json();
   } catch { return null; }
+}
+
+// Extraire toutes les balises [FILE:...] d'une réponse
+function extractFiles(text) {
+  const files = [];
+  // Format: [FILE:extension:filename:base64content]
+  const regex = /\[FILE:([a-zA-Z0-9]+):([^:]+):([^\]]*)\]/g;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    files.push({
+      ext: match[1],
+      name: match[2],
+      content: match[3]
+    });
+  }
+  return files;
+}
+
+// Nettoyer les balises FILE du texte de réponse
+function cleanFileTagsFromReply(text) {
+  return text.replace(/\[FILE:[^\]]*\]/g, '').trim();
 }
 
 export default async function handler(req, res) {
@@ -183,7 +221,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
+        max_tokens: 4096,   // Augmenté pour les fichiers longs
         system: fullSystem,
         messages: messages
       })
@@ -198,6 +236,13 @@ export default async function handler(req, res) {
     const ad = await ar.json();
     let reply = ad.content?.[0]?.text || 'Ready.';
     let screenshotData = null;
+
+    // Extraire les fichiers générés par AMIN
+    const generatedFiles = extractFiles(reply);
+    // Nettoyer les balises du texte affiché
+    if (generatedFiles.length > 0) {
+      reply = cleanFileTagsFromReply(reply);
+    }
 
     if (PC_URL && reply.includes('[PC:')) {
       const pcMatch = reply.match(/\[PC:(\w+)(?::([^\]]*))?\]/);
@@ -275,7 +320,11 @@ export default async function handler(req, res) {
       body: JSON.stringify({ role: 'assistant', content: reply, session_id, speaker: currentSpeaker })
     }).catch(() => {});
 
-    return res.status(200).json({ reply, screenshot: screenshotData });
+    return res.status(200).json({
+      reply,
+      screenshot: screenshotData,
+      files: generatedFiles   // [{ext, name, content}]
+    });
 
   } catch (err) {
     console.error('Handler error:', err);
