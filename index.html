@@ -8,118 +8,205 @@
 <meta name="apple-mobile-web-app-title" content="AMIN">
 <title>AMIN</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Marked — rendu Markdown -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
-<!-- Librairies génération fichiers -->
+<!-- JSZip — lecture/création ZIP -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<!-- jsPDF — génération PDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- SheetJS — génération Excel -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  :root { --bg: #000; --surface: rgba(255,255,255,0.05); --border: rgba(255,255,255,0.08); --text: #fff; --text-dim: #555; }
-  html { height: 100%; }
-  body { height: 100%; height: 100dvh; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; transition: background 1s ease; }
-  .app { display: flex; flex-direction: column; height: 100dvh; }
-  .header { padding: 12px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(20px); }
-  .avatar { width: 42px; height: 42px; border-radius: 50%; background: #111; border: 1px solid rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .avatar svg { width: 22px; height: 22px; }
-  .header-text h1 { font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: 2px; }
-  .header-text p { font-size: 10px; color: #555; margin-top: 1px; }
-  .mode-badge { display: inline-block; font-size: 9px; padding: 2px 6px; border-radius: 4px; margin-top: 2px; font-weight: 600; letter-spacing: 1px; }
-  .mode-badge.vocal { background: rgba(255,255,255,0.08); color: #888; }
-  .mode-badge.ecrit { background: rgba(255,255,255,0.15); color: #fff; }
-  .speaker-badge { font-size: 9px; color: #555; margin-left: 6px; letter-spacing: 1px; }
-  .voice-indicator { display: none; align-items: center; gap: 2px; height: 14px; margin-top: 3px; }
-  .voice-indicator.active { display: flex; }
-  .voice-indicator span { width: 2px; background: #fff; border-radius: 2px; animation: wave 1s infinite ease-in-out; }
-  .voice-indicator span:nth-child(1) { height: 4px; animation-delay: 0s; }
-  .voice-indicator span:nth-child(2) { height: 10px; animation-delay: 0.15s; }
-  .voice-indicator span:nth-child(3) { height: 6px; animation-delay: 0.3s; }
-  .voice-indicator span:nth-child(4) { height: 12px; animation-delay: 0.45s; }
-  .voice-indicator span:nth-child(5) { height: 4px; animation-delay: 0.6s; }
-  @keyframes wave { 0%, 100% { transform: scaleY(1); opacity: 0.4; } 50% { transform: scaleY(1.8); opacity: 1; } }
-  .header-right { margin-left: auto; text-align: right; flex-shrink: 0; }
-  .clock { font-size: 14px; font-weight: 600; color: #fff; letter-spacing: 1px; }
-  .weather { font-size: 10px; color: #555; margin-top: 2px; }
-  .stop-btn { background: transparent; border: 1px solid #222; border-radius: 6px; color: #555; font-size: 10px; padding: 3px 8px; cursor: pointer; display: none; margin-top: 4px; }
-  .stop-btn.active { display: block; color: #fff; border-color: #444; }
-  .messages { flex: 1; overflow-y: scroll; -webkit-overflow-scrolling: touch; padding: 20px 16px; display: flex; flex-direction: column; gap: 10px; }
-  .messages::-webkit-scrollbar { display: none; }
-  .msg { display: flex; flex-direction: column; animation: fadeUp 0.3s ease; }
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-  .msg.user { align-items: flex-end; }
-  .msg.amin { align-items: flex-start; }
-  .msg-bubble { max-width: 85%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.55; word-break: break-word; }
-  .msg-bubble p { margin: 0 0 6px 0; }
-  .msg-bubble ul, .msg-bubble ol { padding-left: 16px; margin: 4px 0; }
-  .msg-bubble code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
-  .msg-bubble pre { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; overflow-x: auto; margin: 6px 0; }
-  .msg-bubble pre code { background: none; padding: 0; font-size: 12px; }
-  .msg.amin .msg-bubble { background: rgba(255,255,255,0.04); color: var(--text); border-bottom-left-radius: 4px; border: 1px solid rgba(255,255,255,0.07); }
-  .msg.user .msg-bubble { background: rgba(255,255,255,0.07); color: var(--text); border-bottom-right-radius: 4px; border: 1px solid rgba(255,255,255,0.1); white-space: pre-wrap; }
+/* ════════════════════════════════════════════════════════════
+   RESET & VARIABLES
+   ════════════════════════════════════════════════════════════ */
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+:root { --bg:#000; --border:rgba(255,255,255,0.08); --text:#fff; --dim:#555; }
+html,body { height:100%; height:100dvh; }
+body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; overflow:hidden; transition:background 1s ease; }
 
-  /* Bubble fichier importé */
-  .file-bubble { max-width: 85%; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); font-size: 12px; color: #888; display: flex; align-items: center; gap: 8px; }
-  .file-bubble span { color: #fff; font-size: 13px; }
+/* ════════════════════════════════════════════════════════════
+   APP LAYOUT
+   ════════════════════════════════════════════════════════════ */
+.app { display:flex; flex-direction:column; height:100dvh; }
 
-  /* Carte de téléchargement fichier généré — style Claude */
-  .file-card { max-width: 85%; margin-top: 4px; padding: 12px 14px; border-radius: 12px; background: #1a1a1a; border: 1px solid #2a2a2a; display: flex; align-items: center; gap: 12px; }
-  .file-card-icon { width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; }
-  .file-card-icon.type-js   { background: #2a2000; color: #f7df1e; }
-  .file-card-icon.type-py   { background: #001a2a; color: #4b8bbe; }
-  .file-card-icon.type-html { background: #2a0f00; color: #e34c26; }
-  .file-card-icon.type-css  { background: #00102a; color: #264de4; }
-  .file-card-icon.type-json { background: #1a1a00; color: #cbcb41; }
-  .file-card-icon.type-pdf  { background: #2a0000; color: #ff4444; }
-  .file-card-icon.type-xlsx { background: #002a00; color: #1d6f42; }
-  .file-card-icon.type-docx { background: #00102a; color: #2b579a; }
-  .file-card-icon.type-zip  { background: #1a1200; color: #f5a623; }
-  .file-card-icon.type-md   { background: #1a1a1a; color: #aaa; }
-  .file-card-icon.type-txt  { background: #1a1a1a; color: #aaa; }
-  .file-card-icon.type-sh   { background: #001a00; color: #4ec94e; }
-  .file-card-icon.type-default { background: #1e1e1e; color: #888; }
-  .file-card-info { flex: 1; min-width: 0; }
-  .file-card-name { font-size: 13px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .file-card-ext { font-size: 11px; color: #555; margin-top: 2px; }
-  .file-card-btn { flex-shrink: 0; background: transparent; border: 1px solid #333; border-radius: 8px; color: #ccc; font-size: 12px; font-weight: 500; padding: 6px 14px; cursor: pointer; transition: all 0.15s; white-space: nowrap; font-family: 'Inter', sans-serif; }
-  .file-card-btn:hover { background: #222; border-color: #444; color: #fff; }
-  .file-card-btn:active { transform: scale(0.96); }
+/* ════════════════════════════════════════════════════════════
+   HEADER
+   ════════════════════════════════════════════════════════════ */
+.header { padding:12px 16px; display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--border); flex-shrink:0; background:rgba(0,0,0,0.5); backdrop-filter:blur(20px); position:relative; z-index:10; }
+.avatar { width:42px; height:42px; border-radius:50%; background:#111; border:1px solid rgba(255,255,255,0.15); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.avatar svg { width:22px; height:22px; }
+.header-text h1 { font-size:15px; font-weight:600; letter-spacing:2px; }
+.speaker-badge { font-size:9px; color:var(--dim); margin-left:6px; letter-spacing:1px; }
+.mode-badge { display:inline-block; font-size:9px; padding:2px 6px; border-radius:4px; margin-top:2px; font-weight:600; letter-spacing:1px; }
+.mode-badge.ecrit { background:rgba(255,255,255,0.15); color:#fff; }
+.mode-badge.vocal { background:rgba(255,255,255,0.08); color:#888; }
+.voice-indicator { display:none; align-items:center; gap:2px; height:14px; margin-top:3px; }
+.voice-indicator.active { display:flex; }
+.voice-indicator span { width:2px; background:#fff; border-radius:2px; animation:wave 1s infinite ease-in-out; }
+.voice-indicator span:nth-child(1){height:4px;animation-delay:0s}
+.voice-indicator span:nth-child(2){height:10px;animation-delay:.15s}
+.voice-indicator span:nth-child(3){height:6px;animation-delay:.3s}
+.voice-indicator span:nth-child(4){height:12px;animation-delay:.45s}
+.voice-indicator span:nth-child(5){height:4px;animation-delay:.6s}
+@keyframes wave{0%,100%{transform:scaleY(1);opacity:.4}50%{transform:scaleY(1.8);opacity:1}}
+.header-right { margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex-shrink:0; }
+.clock { font-size:14px; font-weight:600; letter-spacing:1px; }
+.weather { font-size:10px; color:var(--dim); }
+.stop-btn { display:none; background:transparent; border:1px solid #222; border-radius:6px; color:var(--dim); font-size:10px; padding:3px 8px; cursor:pointer; font-family:'Inter',sans-serif; }
+.stop-btn.active { display:block; color:#fff; border-color:#444; }
+.files-btn { background:transparent; border:1px solid #222; border-radius:6px; color:var(--dim); font-size:10px; font-weight:600; padding:3px 8px; cursor:pointer; letter-spacing:.5px; transition:all .2s; font-family:'Inter',sans-serif; }
+.files-btn:hover { border-color:#444; color:#fff; }
+.files-btn.has { border-color:#333; color:#aaa; }
 
-  /* Drop zone overlay */
-  .drop-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; align-items: center; justify-content: center; flex-direction: column; gap: 12px; border: 2px dashed rgba(255,255,255,0.3); }
-  .drop-overlay.active { display: flex; }
-  .drop-overlay p { color: #fff; font-size: 16px; font-weight: 600; letter-spacing: 1px; }
-  .drop-overlay small { color: #555; font-size: 11px; }
+/* ════════════════════════════════════════════════════════════
+   MESSAGES
+   ════════════════════════════════════════════════════════════ */
+.messages { flex:1; overflow-y:scroll; -webkit-overflow-scrolling:touch; padding:20px 16px; display:flex; flex-direction:column; gap:10px; }
+.messages::-webkit-scrollbar { display:none; }
+.msg { display:flex; flex-direction:column; animation:fadeUp .3s ease; }
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.msg.user { align-items:flex-end; }
+.msg.amin { align-items:flex-start; }
+/* Bulles texte */
+.bubble { max-width:85%; padding:10px 14px; border-radius:14px; font-size:14px; line-height:1.55; word-break:break-word; }
+.bubble p { margin:0 0 6px; } .bubble p:last-child { margin-bottom:0; }
+.bubble ul,.bubble ol { padding-left:16px; margin:4px 0; }
+.bubble code { background:rgba(255,255,255,.1); padding:2px 6px; border-radius:4px; font-size:12px; }
+.bubble pre { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:8px; padding:10px; overflow-x:auto; margin:6px 0; }
+.bubble pre code { background:none; padding:0; }
+.msg.amin .bubble { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); border-bottom-left-radius:4px; }
+.msg.user .bubble { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1); border-bottom-right-radius:4px; white-space:pre-wrap; }
+/* Bulle fichier importé */
+.file-bubble { max-width:85%; padding:8px 12px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); font-size:12px; color:#888; display:flex; align-items:center; gap:8px; }
+.file-bubble .fb-name { color:#fff; font-size:13px; font-weight:500; }
+.file-bubble .fb-size { font-size:10px; color:#333; }
 
-  .typing { display: none; align-items: center; gap: 6px; padding: 0 16px 8px; flex-shrink: 0; }
-  .typing.active { display: flex; }
-  .typing-text { font-size: 11px; color: var(--text-dim); }
-  .dots { display: flex; gap: 3px; }
-  .dots span { width: 4px; height: 4px; background: #fff; border-radius: 50%; animation: dot 1.2s infinite; opacity: 0.3; }
-  .dots span:nth-child(2) { animation-delay: 0.2s; }
-  .dots span:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes dot { 0%, 60%, 100% { opacity: 0.3; } 30% { opacity: 1; } }
-  .input-wrap { padding: 12px 16px; padding-bottom: max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: flex-end; flex-shrink: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(20px); }
-  textarea { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 10px 14px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; resize: none; outline: none; min-height: 42px; max-height: 100px; line-height: 1.5; transition: border-color 0.2s; }
-  textarea::placeholder { color: var(--text-dim); }
-  textarea:focus { border-color: rgba(255,255,255,0.15); }
-  .send { width: 42px; height: 42px; background: #fff; border: none; border-radius: 12px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: opacity 0.2s, transform 0.1s; }
-  .send:active { transform: scale(0.93); }
-  .send:disabled { opacity: 0.3; cursor: not-allowed; }
-  .send svg { fill: #000; }
-  .mic-btn { width: 42px; height: 42px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-  .mic-btn.listening { background: #ff3b30; border-color: #ff3b30; }
-  .mic-btn svg { fill: #fff; }
-  .upload-btn { width: 42px; height: 42px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-  .upload-btn:active { opacity: 0.7; }
-  .upload-btn svg { fill: #fff; }
-  #fileInput { display: none; }
+/* ════════════════════════════════════════════════════════════
+   CARTES FICHIERS GÉNÉRÉS — style Claude
+   ════════════════════════════════════════════════════════════ */
+.file-card { max-width:85%; padding:12px 14px; border-radius:12px; background:#1a1a1a; border:1px solid #2a2a2a; display:flex; align-items:center; gap:12px; margin-top:4px; }
+/* Icône type */
+.fc-ico { width:38px; height:38px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; letter-spacing:.3px; flex-shrink:0; }
+.t-js   {background:#2a2000;color:#f7df1e} .t-ts   {background:#001a2e;color:#3178c6}
+.t-py   {background:#001a2a;color:#4b8bbe} .t-html {background:#2a0f00;color:#e34c26}
+.t-css  {background:#00102a;color:#264de4} .t-json {background:#1a1a00;color:#cbcb41}
+.t-xml  {background:#1a0e00;color:#f1672d} .t-yaml {background:#1a1000;color:#cc9900}
+.t-csv  {background:#001a00;color:#4ec94e} .t-sql  {background:#001020;color:#00bcd4}
+.t-pdf  {background:#2a0000;color:#ff4444} .t-xlsx {background:#002a00;color:#1d6f42}
+.t-docx {background:#00102a;color:#2b579a} .t-zip  {background:#1a1200;color:#f5a623}
+.t-sh   {background:#001a00;color:#4ec94e} .t-bat  {background:#0d0d0d;color:#888}
+.t-md   {background:#111;color:#aaa}        .t-txt  {background:#111;color:#777}
+.t-svg  {background:#1a0020;color:#ff61f6} .t-qr   {background:#111;color:#fff}
+.t-c    {background:#001020;color:#5c8ebf} .t-cpp  {background:#001020;color:#9c70bf}
+.t-java {background:#1a0800;color:#ea2d2e} .t-def  {background:#1e1e1e;color:#666}
+/* Info */
+.fc-info { flex:1; min-width:0; }
+.fc-name { font-size:13px; font-weight:600; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fc-sub  { font-size:11px; color:#555; margin-top:2px; }
+/* Boutons */
+.fc-actions { display:flex; gap:6px; flex-shrink:0; }
+.fc-btn { background:transparent; border:1px solid #333; border-radius:8px; color:#ccc; font-size:12px; font-weight:500; padding:6px 12px; cursor:pointer; transition:all .15s; font-family:'Inter',sans-serif; white-space:nowrap; }
+.fc-btn:hover { background:#222; border-color:#444; color:#fff; }
+.fc-btn:active { transform:scale(.96); }
+.fc-btn.dl { background:#fff; border-color:#fff; color:#000; }
+.fc-btn.dl:hover { background:#e0e0e0; }
+/* QR dans le chat */
+.qr-wrap { max-width:85%; padding:16px; border-radius:12px; background:#fff; display:inline-flex; flex-direction:column; align-items:center; gap:8px; margin-top:4px; }
+.qr-label { font-size:11px; color:#444; font-weight:500; }
+.qr-dl { background:transparent; border:1px solid #ccc; border-radius:6px; color:#333; font-size:11px; padding:4px 10px; cursor:pointer; font-family:'Inter',sans-serif; }
+/* SVG preview */
+.svg-wrap { max-width:85%; background:#1a1a1a; border:1px solid #2a2a2a; border-radius:12px; padding:12px; margin-top:4px; }
+.svg-wrap svg { max-width:100%; height:auto; display:block; }
+/* Screenshot PC */
+.pc-shot { max-width:85%; border-radius:8px; border:1px solid rgba(255,255,255,.1); display:block; margin-top:4px; }
+
+/* ════════════════════════════════════════════════════════════
+   TYPING
+   ════════════════════════════════════════════════════════════ */
+.typing { display:none; align-items:center; gap:6px; padding:0 16px 8px; flex-shrink:0; }
+.typing.active { display:flex; }
+.typing-text { font-size:11px; color:var(--dim); }
+.dots span { width:4px; height:4px; background:#fff; border-radius:50%; display:inline-block; animation:dot 1.2s infinite; opacity:.3; margin:0 1.5px; }
+.dots span:nth-child(2){animation-delay:.2s} .dots span:nth-child(3){animation-delay:.4s}
+@keyframes dot{0%,60%,100%{opacity:.3}30%{opacity:1}}
+
+/* ════════════════════════════════════════════════════════════
+   INPUT BAR
+   ════════════════════════════════════════════════════════════ */
+.input-wrap { padding:12px 16px; padding-bottom:max(12px,env(safe-area-inset-bottom)); border-top:1px solid var(--border); display:flex; gap:10px; align-items:flex-end; flex-shrink:0; background:rgba(0,0,0,.5); backdrop-filter:blur(20px); }
+textarea { flex:1; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:10px 14px; color:var(--text); font-family:'Inter',sans-serif; font-size:14px; resize:none; outline:none; min-height:42px; max-height:100px; line-height:1.5; transition:border-color .2s; }
+textarea::placeholder { color:var(--dim); }
+textarea:focus { border-color:rgba(255,255,255,.15); }
+.ibtn { width:42px; height:42px; border-radius:12px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); transition:all .2s; }
+.ibtn svg { fill:#fff; }
+.ibtn:active { opacity:.7; }
+.ibtn.mic.on { background:#ff3b30; border-color:#ff3b30; }
+.ibtn.send { background:#fff; border:none; }
+.ibtn.send svg { fill:#000; }
+.ibtn.send:disabled { opacity:.3; cursor:not-allowed; }
+.ibtn.send:active { transform:scale(.93); }
+#fileInput { display:none; }
+
+/* ════════════════════════════════════════════════════════════
+   DROP OVERLAY
+   ════════════════════════════════════════════════════════════ */
+.drop-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.88); z-index:100; align-items:center; justify-content:center; flex-direction:column; gap:12px; border:2px dashed rgba(255,255,255,.2); }
+.drop-overlay.active { display:flex; }
+.drop-overlay p { color:#fff; font-size:16px; font-weight:600; letter-spacing:1px; }
+.drop-overlay small { color:var(--dim); font-size:11px; }
+
+/* ════════════════════════════════════════════════════════════
+   PANNEAU HISTORIQUE FICHIERS
+   ════════════════════════════════════════════════════════════ */
+.fp { display:none; position:fixed; top:0; right:0; width:300px; height:100dvh; background:#0d0d0d; border-left:1px solid #1e1e1e; z-index:50; flex-direction:column; }
+.fp.open { display:flex; }
+.fp-head { padding:16px; border-bottom:1px solid #1e1e1e; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+.fp-title { font-size:13px; font-weight:600; letter-spacing:1px; }
+.fp-close { background:transparent; border:none; color:var(--dim); font-size:20px; cursor:pointer; padding:2px 6px; border-radius:6px; line-height:1; }
+.fp-close:hover { color:#fff; background:#1e1e1e; }
+.fp-body { flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:8px; }
+.fp-body::-webkit-scrollbar { display:none; }
+.fp-empty { color:#333; font-size:12px; text-align:center; margin-top:40px; }
+.fp-card { background:#1a1a1a; border:1px solid #2a2a2a; border-radius:10px; padding:10px 12px; display:flex; align-items:center; gap:10px; }
+.fp-card:hover { background:#1f1f1f; }
+.fp-ico { width:30px; height:30px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; flex-shrink:0; }
+.fp-info { flex:1; min-width:0; }
+.fp-name { font-size:12px; font-weight:600; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fp-time { font-size:10px; color:#444; margin-top:2px; }
+.fp-acts { display:flex; gap:5px; flex-shrink:0; }
+.fp-btn { background:transparent; border:1px solid #2a2a2a; border-radius:6px; color:#666; font-size:10px; padding:3px 7px; cursor:pointer; font-family:'Inter',sans-serif; transition:all .15s; }
+.fp-btn:hover { border-color:#444; color:#fff; }
+
+/* ════════════════════════════════════════════════════════════
+   ÉDITEUR INTÉGRÉ
+   ════════════════════════════════════════════════════════════ */
+.editor { display:none; position:fixed; inset:0; background:#0a0a0a; z-index:60; flex-direction:column; }
+.editor.open { display:flex; }
+.ed-head { padding:12px 16px; border-bottom:1px solid #1e1e1e; display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.ed-fname { flex:1; background:transparent; border:none; color:#fff; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; outline:none; min-width:0; }
+.ed-fname::placeholder { color:#333; }
+.ed-action { background:transparent; border:1px solid #333; border-radius:8px; color:#ccc; font-size:12px; font-weight:500; padding:6px 12px; cursor:pointer; font-family:'Inter',sans-serif; transition:all .15s; white-space:nowrap; }
+.ed-action:hover { background:#1e1e1e; }
+.ed-action.save { background:#fff; border-color:#fff; color:#000; }
+.ed-action.save:hover { background:#e0e0e0; }
+.ed-action.cls { border:none; color:var(--dim); font-size:20px; padding:4px 8px; line-height:1; }
+.ed-action.cls:hover { color:#fff; background:#1e1e1e; }
+.ed-ta { flex:1; background:#0a0a0a; border:none; color:#e0e0e0; font-family:'Courier New',monospace; font-size:13px; line-height:1.7; padding:16px 20px; resize:none; outline:none; overflow-y:auto; tab-size:2; }
+.ed-ta::-webkit-scrollbar { width:4px; }
+.ed-ta::-webkit-scrollbar-thumb { background:#222; border-radius:2px; }
+.ed-status { padding:5px 16px; border-top:1px solid #1a1a1a; display:flex; gap:16px; flex-shrink:0; }
+.ed-status span { font-size:10px; color:#333; }
 </style>
 </head>
 <body>
 <div class="app">
+
+  <!-- ═══════════════════ HEADER ═══════════════════ -->
   <div class="header">
     <div class="avatar">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="11" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
         <path d="M8 16L10.5 9L12 13L13.5 9L16 16" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         <circle cx="12" cy="12" r="2" fill="rgba(255,255,255,0.1)"/>
@@ -128,7 +215,7 @@
     <div class="header-text">
       <h1>AMIN <span class="speaker-badge" id="speakerBadge">· BALDE</span></h1>
       <div class="mode-badge ecrit" id="modeBadge">ÉCRIT</div>
-      <div class="voice-indicator" id="voiceIndicator">
+      <div class="voice-indicator" id="voiceInd">
         <span></span><span></span><span></span><span></span><span></span>
       </div>
     </div>
@@ -136,590 +223,664 @@
       <div class="clock" id="clock">--:--:--</div>
       <div class="weather" id="weather">Dakar --°C</div>
       <button class="stop-btn" id="stopBtn" onclick="stopSpeaking()">⏹ Stop</button>
+      <button class="files-btn" id="filesBtn" onclick="toggleFP()">FICHIERS</button>
     </div>
   </div>
+
+  <!-- ═══════════════════ MESSAGES ═══════════════════ -->
   <div class="messages" id="messages"></div>
+
+  <!-- ═══════════════════ TYPING ═══════════════════ -->
   <div class="typing" id="typing">
     <div class="dots"><span></span><span></span><span></span></div>
     <span class="typing-text">AMIN...</span>
   </div>
+
+  <!-- ═══════════════════ INPUT ═══════════════════ -->
   <div class="input-wrap">
-    <button class="mic-btn" id="micBtn" onclick="toggleMic()">
+    <button class="ibtn mic" id="micBtn" onclick="toggleMic()">
       <svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm0 2a2 2 0 0 0-2 2v6a2 2 0 0 0 4 0V5a2 2 0 0 0-2-2zm-1 14.93A8 8 0 0 1 4 11H2a10 10 0 0 0 9 9.93V23h2v-2.07A10 10 0 0 0 22 11h-2a8 8 0 0 1-7 7.93z"/></svg>
     </button>
-    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+    <button class="ibtn" onclick="document.getElementById('fileInput').click()">
       <svg width="16" height="16" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/></svg>
     </button>
-    <!-- Accept TOUS les types de fichiers -->
     <input type="file" id="fileInput" accept="*/*" onchange="handleFile(this)">
     <textarea id="input" placeholder="Parle ou écris à AMIN..." rows="1"></textarea>
-    <button class="send" id="sendBtn" onclick="sendMessage()">
+    <button class="ibtn send" id="sendBtn" onclick="sendMessage()">
       <svg width="16" height="16" viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
     </button>
   </div>
 </div>
 
-<!-- Drop overlay -->
+<!-- ═══════════════════ DROP OVERLAY ═══════════════════ -->
 <div class="drop-overlay" id="dropOverlay">
   <p>📂 Dépose ton fichier ici</p>
-  <small>Tous types acceptés — code, PDF, Word, Excel, ZIP, images...</small>
+  <small>Tous types — code, PDF, Word, Excel, ZIP, images...</small>
+</div>
+
+<!-- ═══════════════════ PANNEAU HISTORIQUE ═══════════════════ -->
+<div class="fp" id="fp">
+  <div class="fp-head">
+    <span class="fp-title">FICHIERS</span>
+    <button class="fp-close" onclick="toggleFP()">×</button>
+  </div>
+  <div class="fp-body" id="fpBody">
+    <div class="fp-empty" id="fpEmpty">Aucun fichier généré</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ ÉDITEUR ═══════════════════ -->
+<div class="editor" id="editor">
+  <div class="ed-head">
+    <input class="ed-fname" id="edFname" type="text" placeholder="fichier.py"/>
+    <button class="ed-action" onclick="edDownload()">Télécharger</button>
+    <button class="ed-action save" onclick="edSave()">Sauvegarder</button>
+    <button class="ed-action cls" onclick="closeEditor()">×</button>
+  </div>
+  <textarea class="ed-ta" id="edTa" spellcheck="false"></textarea>
+  <div class="ed-status">
+    <span id="edLines">0 lignes</span>
+    <span id="edChars">0 car.</span>
+    <span id="edExt">—</span>
+  </div>
 </div>
 
 <script>
-const SESSION_ID = 'session_' + Date.now();
-const messagesEl = document.getElementById('messages');
-const inputEl = document.getElementById('input');
-const typingEl = document.getElementById('typing');
-const sendBtn = document.getElementById('sendBtn');
-const micBtn = document.getElementById('micBtn');
-const stopBtn = document.getElementById('stopBtn');
-const voiceIndicator = document.getElementById('voiceIndicator');
-const modeBadge = document.getElementById('modeBadge');
-const speakerBadge = document.getElementById('speakerBadge');
-let history = [];
-let isLoading = false;
-let recognition = null;
-let wakeActive = false;
-let isSpeaking = false;
-let isWriteMode = true;
+'use strict';
+// ════════════════════════════════════════════════════════════
+// STATE GLOBAL
+// ════════════════════════════════════════════════════════════
+const SESSION_ID    = 'session_' + Date.now();
+const $msg          = document.getElementById('messages');
+const $input        = document.getElementById('input');
+const $typing       = document.getElementById('typing');
+const $sendBtn      = document.getElementById('sendBtn');
+const $micBtn       = document.getElementById('micBtn');
+const $stopBtn      = document.getElementById('stopBtn');
+const $voiceInd     = document.getElementById('voiceInd');
+const $modeBadge    = document.getElementById('modeBadge');
+const $speakerBadge = document.getElementById('speakerBadge');
+const $filesBtn     = document.getElementById('filesBtn');
+
+let chatHistory    = [];
+let isLoading      = false;
+let recognition    = null;
+let wakeActive     = false;
+let isSpeaking     = false;
+let isWriteMode    = true;
 let currentSpeaker = 'BALDE';
+let fileHistory    = [];
+let editorFile     = null;
 
-// ============================================================
-// UTILITAIRES FICHIERS
-// ============================================================
+// ════════════════════════════════════════════════════════════
+// UTILS FICHIERS — classes CSS, labels, MIME
+// ════════════════════════════════════════════════════════════
+const FC_CLASS = {
+  js:'t-js',ts:'t-ts',py:'t-py',html:'t-html',css:'t-css',
+  json:'t-json',xml:'t-xml',yaml:'t-yaml',yml:'t-yaml',csv:'t-csv',sql:'t-sql',
+  pdf:'t-pdf',xlsx:'t-xlsx',xls:'t-xlsx',docx:'t-docx',doc:'t-docx',
+  zip:'t-zip',sh:'t-sh',bat:'t-bat',md:'t-md',txt:'t-txt',
+  svg:'t-svg',qr:'t-qr',c:'t-c',cpp:'t-cpp',h:'t-c',java:'t-java'
+};
+const FC_LABEL = {
+  js:'JS',ts:'TS',py:'PY',html:'HTML',css:'CSS',json:'JSON',
+  xml:'XML',yaml:'YAML',yml:'YAML',csv:'CSV',sql:'SQL',pdf:'PDF',
+  xlsx:'XLS',xls:'XLS',docx:'DOC',doc:'DOC',zip:'ZIP',
+  sh:'SH',bat:'BAT',md:'MD',txt:'TXT',svg:'SVG',qr:'QR',
+  c:'C',cpp:'C++',h:'C',java:'JAVA'
+};
+const MIME = {
+  txt:'text/plain',md:'text/markdown',html:'text/html',css:'text/css',
+  js:'application/javascript',ts:'application/javascript',
+  py:'text/x-python',json:'application/json',xml:'application/xml',
+  csv:'text/csv',yaml:'text/yaml',sql:'text/plain',sh:'text/x-sh',
+  bat:'text/plain',java:'text/x-java',c:'text/x-c',cpp:'text/x-c++',
+  pdf:'application/pdf',svg:'image/svg+xml',
+  docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  zip:'application/zip'
+};
+function fcClass(ext){ return FC_CLASS[(ext||'').toLowerCase()]||'t-def'; }
+function fcLabel(ext){ const e=(ext||'').toLowerCase(); return FC_LABEL[e]||(ext||'FILE').toUpperCase().slice(0,4); }
+function getMime(ext){ return MIME[(ext||'').toLowerCase()]||'application/octet-stream'; }
 
-// Icônes par type de fichier
-function fileIcon(ext) {
-  const icons = {
-    py: '🐍', js: '📜', ts: '📘', html: '🌐', css: '🎨',
-    json: '📋', xml: '📋', yaml: '📋', csv: '📊', sql: '🗄️',
-    txt: '📄', md: '📝', sh: '⚙️', bat: '⚙️',
-    pdf: '📕', docx: '📘', xlsx: '📗', pptx: '📙',
-    zip: '📦', java: '☕', c: '🔧', cpp: '🔧',
-    dockerfile: '🐳', gitignore: '🔒',
-    png: '🖼️', jpg: '🖼️', jpeg: '🖼️', gif: '🖼️', webp: '🖼️',
-    mp3: '🎵', mp4: '🎬', wav: '🎵'
-  };
-  return icons[ext.toLowerCase()] || '📄';
+function safeAtob(str) {
+  try { return atob(str); } catch(e) { return str; }
+}
+function safeBtoa(str) {
+  try { return btoa(unescape(encodeURIComponent(str))); } catch(e) { try { return btoa(str); } catch(e2) { return str; } }
 }
 
-// Détecter le type MIME
-function getMime(ext) {
-  const mimes = {
-    txt: 'text/plain', md: 'text/markdown', html: 'text/html',
-    css: 'text/css', js: 'application/javascript', py: 'text/x-python',
-    json: 'application/json', xml: 'application/xml', csv: 'text/csv',
-    yaml: 'text/yaml', sql: 'text/plain', sh: 'text/x-sh',
-    bat: 'text/plain', java: 'text/x-java', c: 'text/x-c',
-    cpp: 'text/x-c++', pdf: 'application/pdf',
-    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    zip: 'application/zip'
-  };
-  return mimes[ext.toLowerCase()] || 'application/octet-stream';
+// ════════════════════════════════════════════════════════════
+// TÉLÉCHARGEMENT FICHIERS
+// ════════════════════════════════════════════════════════════
+function triggerDownload(url, filename) {
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
 }
 
-// Télécharger un fichier généré par AMIN
 async function downloadFile(ext, filename, content) {
+  const extL = (ext||'').toLowerCase();
   try {
     let blob;
-    const extLow = ext.toLowerCase();
-
-    if (extLow === 'pdf') {
-      // Générer PDF avec jsPDF
+    if (extL === 'qr') {
+      // QR → télécharger en PNG
+      const canvas = document.createElement('canvas');
+      await renderQR(content, canvas, 400);
+      canvas.toBlob(b => triggerDownload(URL.createObjectURL(b), filename.replace(/\.qr$/i,'.png')));
+      return;
+    }
+    if (extL === 'pdf') {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
-      const lines = doc.splitTextToSize(atob(content), 180);
-      doc.setFont('helvetica');
-      doc.setFontSize(11);
-      doc.text(lines, 15, 20);
+      const decoded = safeAtob(content);
+      doc.setFont('helvetica'); doc.setFontSize(11);
+      doc.text(doc.splitTextToSize(decoded, 180), 15, 20);
       blob = doc.output('blob');
-
-    } else if (extLow === 'xlsx') {
-      // Générer Excel avec SheetJS
-      const decoded = atob(content);
-      const rows = decoded.split('\n').map(r => r.split(','));
-      const ws = XLSX.utils.aoa_to_sheet(rows);
+    } else if (extL === 'xlsx') {
+      const decoded = safeAtob(content);
+      const rows = decoded.trim().split('\n').map(r => r.split(','));
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
-      const out = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Sheet1');
+      const out = XLSX.write(wb, { type:'array', bookType:'xlsx' });
       blob = new Blob([out], { type: getMime('xlsx') });
+    } else if (extL === 'zip') {
+      const s = safeAtob(content);
+      const bytes = new Uint8Array(s.length);
+      for (let i=0;i<s.length;i++) bytes[i]=s.charCodeAt(i);
+      blob = new Blob([bytes], { type:'application/zip' });
+    } else {
+      blob = new Blob([safeAtob(content)], { type: getMime(extL) });
+    }
+    triggerDownload(URL.createObjectURL(blob), filename);
+  } catch(e) { console.error('Download error:', e); }
+}
 
-    } else if (extLow === 'zip') {
-      // Déjà un zip base64
-      const binaryStr = atob(content);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-      blob = new Blob([bytes], { type: 'application/zip' });
+// ════════════════════════════════════════════════════════════
+// QR CODE — API gratuite qrserver.com
+// ════════════════════════════════════════════════════════════
+function renderQR(text, canvas, size) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      canvas.width = size; canvas.height = size;
+      canvas.getContext('2d').drawImage(img, 0, 0, size, size);
+      resolve();
+    };
+    img.onerror = () => resolve();
+    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(text)}`;
+  });
+}
 
-    } else if (extLow === 'docx') {
-      // Pour docx : on génère un fichier .txt avec le contenu markdown (vraie génération docx nécessite serveur)
-      // On télécharge en .txt pour l'instant, préfixé
-      const decoded = atob(content);
-      blob = new Blob([decoded], { type: 'text/plain' });
-      filename = filename.replace('.docx', '.txt');
+// ════════════════════════════════════════════════════════════
+// AFFICHAGE CARTES FICHIERS GÉNÉRÉS
+// ════════════════════════════════════════════════════════════
+function showFileCards(files) {
+  if (!files?.length) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'msg amin';
+  wrap.style.gap = '6px';
+
+  files.forEach(f => {
+    const ext = (f.ext||'').toLowerCase();
+
+    if (ext === 'qr') {
+      // QR affiché directement dans le chat
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'msg amin';
+      const qrWrap = document.createElement('div');
+      qrWrap.className = 'qr-wrap';
+      const canvas = document.createElement('canvas');
+      const label = document.createElement('div');
+      label.className = 'qr-label';
+      label.textContent = f.content;
+      const dlBtn = document.createElement('button');
+      dlBtn.className = 'qr-dl';
+      dlBtn.textContent = 'Télécharger PNG';
+      dlBtn.onclick = () => downloadFile('qr', f.name, f.content);
+      qrWrap.append(canvas, label, dlBtn);
+      msgDiv.appendChild(qrWrap);
+      $msg.appendChild(msgDiv);
+      renderQR(f.content, canvas, 200);
+
+    } else if (ext === 'svg') {
+      // SVG prévisualisé inline
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'msg amin';
+      const svgWrap = document.createElement('div');
+      svgWrap.className = 'svg-wrap';
+      try {
+        const decoded = safeAtob(f.content);
+        svgWrap.innerHTML = decoded;
+        svgWrap.querySelector('svg')?.setAttribute('style','max-width:100%;height:auto;display:block;');
+      } catch(e) { svgWrap.textContent = 'SVG non lisible.'; }
+      msgDiv.appendChild(svgWrap);
+      $msg.appendChild(msgDiv);
+      // + carte téléchargement
+      wrap.appendChild(buildCard(f));
 
     } else {
-      // Fichiers texte/code : décode base64
-      let decoded;
-      try {
-        decoded = atob(content);
-      } catch(e) {
-        decoded = content; // contenu brut si pas base64
-      }
-      blob = new Blob([decoded], { type: getMime(extLow) });
+      wrap.appendChild(buildCard(f));
     }
+  });
 
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-  } catch(e) {
-    console.error('Download error:', e);
-  }
+  if (wrap.children.length) $msg.appendChild(wrap);
+  $msg.scrollTop = $msg.scrollHeight;
+  addToHistory(files);
 }
 
-// Classe couleur par extension
-function fileColorClass(ext) {
-  const map = { js:'type-js', ts:'type-js', py:'type-py', html:'type-html', css:'type-css',
-    json:'type-json', yaml:'type-json', xml:'type-json', pdf:'type-pdf',
-    xlsx:'type-xlsx', csv:'type-xlsx', docx:'type-docx', zip:'type-zip',
-    md:'type-md', txt:'type-txt', sh:'type-sh', bat:'type-sh' };
-  return map[ext.toLowerCase()] || 'type-default';
+function buildCard(f) {
+  const card = document.createElement('div');
+  card.className = 'file-card';
+  card.innerHTML = `
+    <div class="fc-ico ${fcClass(f.ext)}">${fcLabel(f.ext)}</div>
+    <div class="fc-info">
+      <div class="fc-name">${escHtml(f.name)}</div>
+      <div class="fc-sub">${(f.ext||'').toUpperCase()} · Généré par AMIN</div>
+    </div>
+    <div class="fc-actions">
+      <button class="fc-btn edit-btn">Éditer</button>
+      <button class="fc-btn dl">Télécharger</button>
+    </div>`;
+  card.querySelector('.edit-btn').onclick = () => openEditor(f.ext, f.name, f.content);
+  card.querySelector('.dl').onclick = () => downloadFile(f.ext, f.name, f.content);
+  return card;
 }
 
-// Label court pour l'icône
-function fileLabel(ext) {
-  const labels = { js:'JS', ts:'TS', py:'PY', html:'HTML', css:'CSS', json:'JSON',
-    yaml:'YAML', xml:'XML', pdf:'PDF', xlsx:'XLS', csv:'CSV', docx:'DOC',
-    zip:'ZIP', md:'MD', txt:'TXT', sh:'SH', bat:'BAT', sql:'SQL',
-    java:'JAVA', c:'C', cpp:'C++' };
-  return labels[ext.toLowerCase()] || ext.toUpperCase().slice(0,4);
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// Afficher les cartes de fichiers générés — style Claude
-function showFileCards(files) {
-  if (!files || !files.length) return;
-  const container = document.createElement('div');
-  container.className = 'msg amin';
-  container.style.gap = '6px';
-  files.forEach(f => {
+// ════════════════════════════════════════════════════════════
+// HISTORIQUE FICHIERS
+// ════════════════════════════════════════════════════════════
+function addToHistory(files) {
+  const t = new Date();
+  const ts = String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
+  files.forEach(f => fileHistory.unshift({...f, time: ts}));
+  renderFP();
+  $filesBtn.classList.add('has');
+  $filesBtn.textContent = `FICHIERS (${fileHistory.length})`;
+}
+
+function toggleFP() {
+  document.getElementById('fp').classList.toggle('open');
+}
+
+function renderFP() {
+  const body = document.getElementById('fpBody');
+  const empty = document.getElementById('fpEmpty');
+  body.querySelectorAll('.fp-card').forEach(c => c.remove());
+  if (!fileHistory.length) { empty.style.display='block'; return; }
+  empty.style.display = 'none';
+  fileHistory.forEach((f, i) => {
     const card = document.createElement('div');
-    card.className = 'file-card';
-    // Stocker le contenu dans un data attribute pour éviter les problèmes d'échappement
-    card.dataset.ext = f.ext;
-    card.dataset.name = f.name;
-    card.dataset.content = f.content;
+    card.className = 'fp-card';
     card.innerHTML = `
-      <div class="file-card-icon ${fileColorClass(f.ext)}">${fileLabel(f.ext)}</div>
-      <div class="file-card-info">
-        <div class="file-card-name">${f.name}</div>
-        <div class="file-card-ext">${f.ext.toUpperCase()} · Code</div>
+      <div class="fp-ico ${fcClass(f.ext)}">${fcLabel(f.ext)}</div>
+      <div class="fp-info">
+        <div class="fp-name">${escHtml(f.name)}</div>
+        <div class="fp-time">${f.time}</div>
       </div>
-      <button class="file-card-btn">Télécharger</button>
-    `;
-    card.querySelector('.file-card-btn').addEventListener('click', () => {
-      downloadFile(card.dataset.ext, card.dataset.name, card.dataset.content);
+      <div class="fp-acts">
+        <button class="fp-btn" data-i="${i}" data-a="edit">Éditer</button>
+        <button class="fp-btn" data-i="${i}" data-a="dl">↓</button>
+      </div>`;
+    card.querySelectorAll('.fp-btn').forEach(btn => btn.onclick = () => {
+      const file = fileHistory[btn.dataset.i];
+      btn.dataset.a === 'dl' ? downloadFile(file.ext,file.name,file.content) : openEditor(file.ext,file.name,file.content);
     });
-    container.appendChild(card);
-  });
-  messagesEl.appendChild(container);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-}
-
-// ============================================================
-// IMPORT DE FICHIERS — tous types
-// ============================================================
-
-// Lire le contenu textuel d'un fichier
-function readFileAsText(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = e => resolve(e.target.result);
-    reader.onerror = () => reject(new Error('Read failed'));
-    reader.readAsText(file);
+    body.appendChild(card);
   });
 }
 
-function readFileAsBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = e => resolve(e.target.result.split(',')[1]);
-    reader.onerror = () => reject(new Error('Read failed'));
-    reader.readAsDataURL(file);
-  });
+// ════════════════════════════════════════════════════════════
+// ÉDITEUR INTÉGRÉ
+// ════════════════════════════════════════════════════════════
+function openEditor(ext, name, content) {
+  editorFile = { ext, name, content };
+  document.getElementById('edFname').value = name;
+  document.getElementById('edTa').value = safeAtob(content);
+  updateEdStatus();
+  document.getElementById('editor').classList.add('open');
+  document.getElementById('fp').classList.remove('open');
 }
 
-// Détecter si le fichier est lisible comme texte
-function isTextFile(filename) {
-  const textExts = ['txt','md','html','css','js','ts','py','java','c','cpp','h',
-    'json','xml','yaml','yml','csv','sql','sh','bat','dockerfile','gitignore',
-    'env','ini','cfg','conf','log','rs','go','rb','php','swift','kt'];
-  const ext = filename.split('.').pop().toLowerCase();
-  return textExts.includes(ext);
+function closeEditor() { document.getElementById('editor').classList.remove('open'); }
+
+function updateEdStatus() {
+  const ta = document.getElementById('edTa');
+  const fname = document.getElementById('edFname').value;
+  document.getElementById('edLines').textContent = ta.value.split('\n').length + ' lignes';
+  document.getElementById('edChars').textContent = ta.value.length + ' car.';
+  document.getElementById('edExt').textContent = (fname.split('.').pop()||'—').toUpperCase();
 }
 
-// Détecter si le fichier est une image
-function isImageFile(filename) {
-  const imgExts = ['png','jpg','jpeg','webp','gif','bmp','svg'];
-  const ext = filename.split('.').pop().toLowerCase();
-  return imgExts.includes(ext);
+function edSave() {
+  const content = document.getElementById('edTa').value;
+  const name    = document.getElementById('edFname').value;
+  const ext     = name.split('.').pop();
+  const encoded = safeBtoa(content);
+  const idx = fileHistory.findIndex(f => f.name === editorFile?.name);
+  if (idx !== -1) fileHistory[idx] = { ...fileHistory[idx], ext, name, content: encoded };
+  editorFile = { ext, name, content: encoded };
+  renderFP();
+  const btn = document.querySelector('.ed-action.save');
+  btn.textContent = '✓ Sauvegardé';
+  setTimeout(() => { btn.textContent = 'Sauvegarder'; }, 1500);
 }
 
-// Détecter si c'est un fichier binaire analysable via /api/upload
-function isUploadableFile(filename) {
-  const uploadExts = ['pdf','docx','xlsx','pptx','jpg','jpeg','png','webp','gif'];
-  const ext = filename.split('.').pop().toLowerCase();
-  return uploadExts.includes(ext);
+function edDownload() {
+  const content = document.getElementById('edTa').value;
+  const name    = document.getElementById('edFname').value;
+  const ext     = name.split('.').pop();
+  downloadFile(ext, name, safeBtoa(content));
 }
+
+document.getElementById('edTa').addEventListener('input', updateEdStatus);
+document.getElementById('edFname').addEventListener('input', updateEdStatus);
+document.getElementById('edTa').addEventListener('keydown', e => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const ta = e.target;
+    const s = ta.selectionStart;
+    ta.value = ta.value.slice(0,s) + '  ' + ta.value.slice(ta.selectionEnd);
+    ta.selectionStart = ta.selectionEnd = s + 2;
+  }
+});
+
+// ════════════════════════════════════════════════════════════
+// IMPORT FICHIERS — tous types (V5 étendu)
+// ════════════════════════════════════════════════════════════
+function isText(name)     { return /\.(txt|md|html|css|js|ts|mjs|py|java|c|cpp|h|json|xml|yaml|yml|csv|sql|sh|bat|ps1|dockerfile|gitignore|env|ini|cfg|conf|log|rs|go|rb|php|swift|kt|r|m|lua|dart)$/i.test(name); }
+function isUploadable(name){ return /\.(pdf|docx|doc|xlsx|xls|pptx|ppt|jpg|jpeg|png|webp|gif)$/i.test(name); }
 
 async function handleFile(input) {
   const file = input.files[0];
   if (!file) return;
+  if (file.size > 20*1024*1024) { addMsg('assistant','Fichier trop lourd. Max 20MB.'); input.value=''; return; }
 
-  const maxSize = 20 * 1024 * 1024; // 20MB
-  if (file.size > maxSize) {
-    addMessage('assistant', 'Fichier trop lourd. Max 20MB.');
-    input.value = '';
-    return;
-  }
+  const question = $input.value.trim() || 'Analyse ce fichier et dis-moi ce que c\'est.';
+  $input.value = '';
 
-  const question = inputEl.value.trim() || 'Analyse ce fichier et dis-moi ce que c\'est.';
-  inputEl.value = '';
-
-  // Afficher la bulle fichier importé
+  // Bulle fichier importé
   const div = document.createElement('div');
   div.className = 'msg user';
-  const bubble = document.createElement('div');
-  bubble.className = 'file-bubble';
-  bubble.innerHTML = `${fileIcon(file.name.split('.').pop())} <span>${file.name}</span> <small style="color:#444;font-size:10px">${(file.size/1024).toFixed(0)}KB</small>`;
-  div.appendChild(bubble);
-  messagesEl.appendChild(div);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
+  const fb = document.createElement('div');
+  fb.className = 'file-bubble';
+  fb.innerHTML = `<div class="fc-ico ${fcClass(file.name.split('.').pop())}" style="width:24px;height:24px;font-size:8px;border-radius:4px;flex-shrink:0;">${fcLabel(file.name.split('.').pop())}</div><span class="fb-name">${escHtml(file.name)}</span><span class="fb-size">${(file.size/1024).toFixed(0)}KB</span>`;
+  div.appendChild(fb);
+  $msg.appendChild(div);
+  $msg.scrollTop = $msg.scrollHeight;
 
-  isLoading = true;
-  sendBtn.disabled = true;
-  typingEl.classList.add('active');
+  isLoading = true; $sendBtn.disabled = true; $typing.classList.add('active');
 
   try {
     let reply = '';
 
-    if (isTextFile(file.name)) {
-      // Lire comme texte et envoyer directement à AMIN via chat
-      const content = await readFileAsText(file);
-      const truncated = content.length > 8000 ? content.slice(0, 8000) + '\n\n[... tronqué ...]' : content;
-      const userMsg = `[Fichier: ${file.name}]\n\`\`\`\n${truncated}\n\`\`\`\n\n${question}`;
-      history.push({ role: 'user', content: userMsg });
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history, session_id: SESSION_ID, speaker: currentSpeaker, datetime: new Date().toLocaleString() })
-      });
-      const data = await res.json();
-      reply = data.reply || 'Fichier analysé.';
+    if (isText(file.name)) {
+      // Lire comme texte → envoyer dans le chat
+      const text = await file.text();
+      const trunc = text.length > 8000 ? text.slice(0,8000)+'\n\n[... tronqué ...]' : text;
+      const userMsg = `[Fichier: ${file.name}]\n\`\`\`\n${trunc}\n\`\`\`\n\n${question}`;
+      chatHistory.push({ role:'user', content:userMsg });
+      const data = await callChat();
+      reply = data.reply || 'Analysé.';
       if (data.files?.length) showFileCards(data.files);
 
-    } else if (file.name.endsWith('.zip')) {
-      // Décompresser et lister le contenu
-      const base64 = await readFileAsBase64(file);
-      const binaryStr = atob(base64);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-      const zip = await JSZip.loadAsync(bytes);
-      const fileList = Object.keys(zip.files).filter(n => !zip.files[n].dir);
-      let zipContent = `Archive ZIP: ${file.name}\n${fileList.length} fichiers:\n${fileList.join('\n')}`;
-      // Lire les fichiers texte dans le zip
-      const textFiles = fileList.filter(n => isTextFile(n)).slice(0, 3);
-      for (const tf of textFiles) {
-        const content = await zip.files[tf].async('string');
-        const trunc = content.length > 2000 ? content.slice(0, 2000) + '...' : content;
-        zipContent += `\n\n--- ${tf} ---\n${trunc}`;
+    } else if (file.name.toLowerCase().endsWith('.zip')) {
+      // Décompresser et analyser
+      const buf  = await file.arrayBuffer();
+      const zip  = await JSZip.loadAsync(buf);
+      const names = Object.keys(zip.files).filter(n => !zip.files[n].dir);
+      let info = `ZIP: ${file.name} — ${names.length} fichiers:\n${names.join('\n')}`;
+      for (const tf of names.filter(n => isText(n)).slice(0,3)) {
+        const c = await zip.files[tf].async('string');
+        info += `\n\n--- ${tf} ---\n${c.slice(0,2000)}`;
       }
-      const userMsg = `[ZIP: ${file.name}]\n${zipContent}\n\n${question}`;
-      history.push({ role: 'user', content: userMsg });
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history, session_id: SESSION_ID, speaker: currentSpeaker, datetime: new Date().toLocaleString() })
-      });
-      const data = await res.json();
+      chatHistory.push({ role:'user', content:`[ZIP: ${file.name}]\n${info}\n\n${question}` });
+      const data = await callChat();
       reply = data.reply || 'ZIP analysé.';
       if (data.files?.length) showFileCards(data.files);
 
-    } else if (isUploadableFile(file.name)) {
-      // Envoyer à /api/upload (PDF, images, docx, xlsx)
-      const base64 = await readFileAsBase64(file);
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file: base64, filename: file.name, question, speaker: currentSpeaker, datetime: new Date().toLocaleString() })
-      });
+    } else if (isUploadable(file.name)) {
+      // Envoyer à /api/upload (PDF, images, Office)
+      const b64 = await new Promise(r => { const fr=new FileReader(); fr.onload=e=>r(e.target.result.split(',')[1]); fr.readAsDataURL(file); });
+      const res = await fetch('/api/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ file:b64, filename:file.name, question, speaker:currentSpeaker, datetime:new Date().toLocaleString() }) });
       const data = await res.json();
       reply = data.reply || 'Fichier analysé.';
 
     } else {
-      // Fichier non reconnu : info générale
-      reply = `Fichier reçu : **${file.name}** (${(file.size/1024).toFixed(0)}KB). Ce type de fichier ne peut pas être lu directement. Dis-moi ce que tu veux faire avec.`;
+      reply = `Fichier reçu : **${file.name}** (${(file.size/1024).toFixed(0)}KB). Ce type n'est pas lisible directement. Dis-moi ce que tu veux faire avec.`;
     }
 
-    typingEl.classList.remove('active');
-    addMessage('assistant', reply);
-    history.push({ role: 'assistant', content: reply });
+    $typing.classList.remove('active');
+    addMsg('assistant', reply);
+    chatHistory.push({ role:'assistant', content:reply });
     if (!isWriteMode) speakText(reply);
 
-  } catch(err) {
-    typingEl.classList.remove('active');
-    addMessage('assistant', 'Erreur lecture fichier.');
+  } catch(e) {
+    $typing.classList.remove('active');
+    addMsg('assistant', 'Erreur lecture fichier.');
   }
-
-  isLoading = false;
-  sendBtn.disabled = false;
-  input.value = '';
+  isLoading=false; $sendBtn.disabled=false; input.value='';
 }
 
-// ============================================================
+// ════════════════════════════════════════════════════════════
 // DRAG & DROP
-// ============================================================
+// ════════════════════════════════════════════════════════════
 document.addEventListener('dragover', e => { e.preventDefault(); document.getElementById('dropOverlay').classList.add('active'); });
-document.addEventListener('dragleave', e => { if (!e.relatedTarget) document.getElementById('dropOverlay').classList.remove('active'); });
+document.addEventListener('dragleave', e => { if(!e.relatedTarget) document.getElementById('dropOverlay').classList.remove('active'); });
 document.addEventListener('drop', e => {
   e.preventDefault();
   document.getElementById('dropOverlay').classList.remove('active');
   const file = e.dataTransfer.files[0];
-  if (file) {
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    document.getElementById('fileInput').files = dt.files;
-    handleFile(document.getElementById('fileInput'));
-  }
+  if (file) { const dt=new DataTransfer(); dt.items.add(file); document.getElementById('fileInput').files=dt.files; handleFile(document.getElementById('fileInput')); }
 });
 
-// ============================================================
-// UI DE BASE
-// ============================================================
-function setSpeaker(name) { currentSpeaker = name; speakerBadge.textContent = '· ' + name; }
+// ════════════════════════════════════════════════════════════
+// SPEAKER & MODE (V2)
+// ════════════════════════════════════════════════════════════
+function setSpeaker(name) { currentSpeaker=name; $speakerBadge.textContent='· '+name; }
 function setMode(write) {
-  isWriteMode = write;
-  modeBadge.textContent = write ? 'ÉCRIT' : 'VOCAL';
-  modeBadge.className = 'mode-badge ' + (write ? 'ecrit' : 'vocal');
+  isWriteMode=write;
+  $modeBadge.textContent=write?'ÉCRIT':'VOCAL';
+  $modeBadge.className='mode-badge '+(write?'ecrit':'vocal');
 }
 
-function updateClock() {
-  const now = new Date();
-  document.getElementById('clock').textContent =
-    String(now.getHours()).padStart(2,'0') + ':' +
-    String(now.getMinutes()).padStart(2,'0') + ':' +
-    String(now.getSeconds()).padStart(2,'0');
-}
-setInterval(updateClock, 1000); updateClock();
+// ════════════════════════════════════════════════════════════
+// HORLOGE & MÉTÉO
+// ════════════════════════════════════════════════════════════
+(function clock() {
+  const n=new Date();
+  document.getElementById('clock').textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0');
+  setTimeout(clock,1000);
+})();
 
 async function loadWeather() {
-  try {
-    const res = await fetch('/api/weather');
-    const data = await res.json();
-    if (data.temp) document.getElementById('weather').textContent = 'Dakar ' + Math.round(data.temp) + '°C ' + data.desc;
-  } catch(e) {}
+  try { const r=await fetch('/api/weather'); const d=await r.json(); if(d.temp) document.getElementById('weather').textContent='Dakar '+Math.round(d.temp)+'°C '+d.desc; } catch(e){}
 }
-loadWeather(); setInterval(loadWeather, 600000);
+loadWeather(); setInterval(loadWeather,600000);
 
+// ════════════════════════════════════════════════════════════
+// SYNTHÈSE VOCALE (V2)
+// ════════════════════════════════════════════════════════════
 window.speechSynthesis.getVoices();
 window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 
 function getMaleVoice() {
-  const voices = window.speechSynthesis.getVoices();
-  const maleNames = ['thomas','paul','nicolas','guillaume','jean','pierre','henri','claude','luca','reed','aaron','arthur'];
-  const femaleNames = ['amelie','camille','marie','lucie','alice','julie','victoria','sophie','emma','lea'];
-  let voice = voices.find(v => v.lang.startsWith('fr') && maleNames.some(n => v.name.toLowerCase().includes(n)));
-  if (!voice) voice = voices.find(v => v.lang.startsWith('fr') && !femaleNames.some(n => v.name.toLowerCase().includes(n)));
-  if (!voice) voice = voices.find(v => v.lang.startsWith('fr'));
-  return voice;
+  const v=window.speechSynthesis.getVoices();
+  const male=['thomas','paul','nicolas','guillaume','jean','pierre','henri','claude','luca','reed','aaron','arthur'];
+  const female=['amelie','camille','marie','lucie','alice','julie','victoria','sophie','emma','lea'];
+  return v.find(x=>x.lang.startsWith('fr')&&male.some(n=>x.name.toLowerCase().includes(n)))
+      || v.find(x=>x.lang.startsWith('fr')&&!female.some(n=>x.name.toLowerCase().includes(n)))
+      || v.find(x=>x.lang.startsWith('fr'));
 }
 
-function cleanText(text) {
-  return text.replace(/[\u{1F000}-\u{1FFFF}]/gu,'').replace(/[\u{2600}-\u{27BF}]/gu,'')
+function cleanTTS(t) {
+  return t.replace(/[\u{1F000}-\u{1FFFF}]/gu,'').replace(/[\u{2600}-\u{27BF}]/gu,'')
     .replace(/\*\*/g,'').replace(/\*/g,'').replace(/#{1,6}\s/g,'')
     .replace(/\[BGCOLOR:[^\]]*\]/g,'').replace(/[-•]/g,',').trim();
 }
 
 function stopSpeaking() {
-  window.speechSynthesis.cancel(); isSpeaking = false;
-  stopBtn.classList.remove('active'); voiceIndicator.classList.remove('active');
+  window.speechSynthesis.cancel(); isSpeaking=false;
+  $stopBtn.classList.remove('active'); $voiceInd.classList.remove('active');
 }
 
 function speakText(text) {
   if (isWriteMode) return;
   stopSpeaking();
-  const clean = cleanText(text);
-  if (!clean) return;
-  const utter = new SpeechSynthesisUtterance(clean);
-  utter.lang = 'fr-FR'; utter.rate = 1.0; utter.pitch = 0.8; utter.volume = 1;
-  const voice = getMaleVoice();
-  if (voice) utter.voice = voice;
-  utter.onstart = () => { isSpeaking = true; stopBtn.classList.add('active'); voiceIndicator.classList.add('active'); };
-  utter.onend = () => { isSpeaking = false; stopBtn.classList.remove('active'); voiceIndicator.classList.remove('active'); };
-  utter.onerror = () => { isSpeaking = false; stopBtn.classList.remove('active'); voiceIndicator.classList.remove('active'); };
-  window.speechSynthesis.speak(utter);
+  const clean=cleanTTS(text); if(!clean) return;
+  const u=new SpeechSynthesisUtterance(clean);
+  u.lang='fr-FR'; u.rate=1.0; u.pitch=0.8; u.volume=1;
+  const voice=getMaleVoice(); if(voice) u.voice=voice;
+  u.onstart=()=>{isSpeaking=true;$stopBtn.classList.add('active');$voiceInd.classList.add('active');};
+  u.onend=u.onerror=()=>{isSpeaking=false;$stopBtn.classList.remove('active');$voiceInd.classList.remove('active');};
+  window.speechSynthesis.speak(u);
 }
 
+// ════════════════════════════════════════════════════════════
+// WAKE WORD & MIC (V2)
+// ════════════════════════════════════════════════════════════
 function startWakeWord() {
-  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SR();
-  recognition.lang = 'fr-FR'; recognition.continuous = true;
-  recognition.interimResults = true; recognition.maxAlternatives = 3;
-  recognition.onresult = (e) => {
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      const alts = Array.from({length: e.results[i].length}, (_,j) => e.results[i][j].transcript.toLowerCase().trim());
-      const anyText = alts.join(' ');
-      if (!wakeActive) {
-        if (/am[iîe]n|amino|hamid|aming/i.test(anyText)) {
-          wakeActive = true; stopSpeaking(); micBtn.classList.add('listening'); inputEl.value = '';
-        }
+  if (!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)) return;
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  recognition=new SR();
+  recognition.lang='fr-FR'; recognition.continuous=true;
+  recognition.interimResults=true; recognition.maxAlternatives=3;
+  recognition.onresult=e=>{
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const alts=Array.from({length:e.results[i].length},(_,j)=>e.results[i][j].transcript.toLowerCase().trim()).join(' ');
+      if(!wakeActive){
+        if(/am[iîe]n|amino|hamid|aming/i.test(alts)){wakeActive=true;stopSpeaking();$micBtn.classList.add('on');$input.value='';}
       } else {
-        const txt = e.results[i][0].transcript.trim();
-        if (e.results[i].isFinal && txt && !/am[iîe]n/i.test(txt)) {
-          inputEl.value = txt; wakeActive = false; micBtn.classList.remove('listening'); sendMessage();
-        }
+        const txt=e.results[i][0].transcript.trim();
+        if(e.results[i].isFinal&&txt&&!/am[iîe]n/i.test(txt)){$input.value=txt;wakeActive=false;$micBtn.classList.remove('on');sendMessage();}
       }
     }
   };
-  recognition.onend = () => {
-    wakeActive = false; micBtn.classList.remove('listening');
-    setTimeout(() => { try { recognition.start(); } catch(e) {} }, 300);
-  };
-  recognition.onerror = (e) => {
-    if (e.error !== 'aborted' && e.error !== 'no-speech') {
-      wakeActive = false; micBtn.classList.remove('listening');
-      setTimeout(() => { try { recognition.start(); } catch(err) {} }, 800);
-    }
-  };
-  try { recognition.start(); } catch(e) {}
+  recognition.onend=()=>{wakeActive=false;$micBtn.classList.remove('on');setTimeout(()=>{try{recognition.start();}catch(e){}},300);};
+  recognition.onerror=e=>{if(e.error!=='aborted'&&e.error!=='no-speech'){wakeActive=false;$micBtn.classList.remove('on');setTimeout(()=>{try{recognition.start();}catch(e){}},800);}};
+  try{recognition.start();}catch(e){}
 }
 
 function toggleMic() {
-  if (!recognition) return;
-  if (micBtn.classList.contains('listening')) { wakeActive = false; micBtn.classList.remove('listening'); }
-  else { stopSpeaking(); wakeActive = true; micBtn.classList.add('listening'); }
+  if(!recognition)return;
+  if($micBtn.classList.contains('on')){wakeActive=false;$micBtn.classList.remove('on');}
+  else{stopSpeaking();wakeActive=true;$micBtn.classList.add('on');}
 }
 
-function addMessage(role, text) {
-  const div = document.createElement('div');
-  div.className = 'msg ' + (role === 'assistant' ? 'amin' : 'user');
-  const bubble = document.createElement('div');
-  bubble.className = 'msg-bubble';
-  if (role === 'assistant') {
-    const clean = text.replace(/\[BGCOLOR:[^\]]*\]/g,'').trim();
-    bubble.innerHTML = marked.parse(clean);
-  } else {
-    bubble.textContent = text;
-  }
+// ════════════════════════════════════════════════════════════
+// AFFICHAGE MESSAGES
+// ════════════════════════════════════════════════════════════
+function addMsg(role, text) {
+  const div=document.createElement('div');
+  div.className='msg '+(role==='assistant'?'amin':'user');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  if(role==='assistant') bubble.innerHTML=marked.parse(text.replace(/\[BGCOLOR:[^\]]*\]/g,'').trim());
+  else bubble.textContent=text;
   div.appendChild(bubble);
-  messagesEl.appendChild(div);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
+  $msg.appendChild(div);
+  $msg.scrollTop=$msg.scrollHeight;
 }
 
 function changeBg(color) {
-  document.body.style.transition = 'background 1s ease';
-  document.body.style.background = color;
-  const temp = document.createElement('div');
-  temp.style.color = color; document.body.appendChild(temp);
-  const rgb = getComputedStyle(temp).color; document.body.removeChild(temp);
-  const match = rgb.match(/\d+/g);
-  if (match) {
-    const brightness = (parseInt(match[0])*299 + parseInt(match[1])*587 + parseInt(match[2])*114) / 1000;
-    const textColor = brightness > 128 ? '#000' : '#fff';
-    document.documentElement.style.setProperty('--text', textColor);
-    document.documentElement.style.setProperty('--text-dim', brightness > 128 ? '#444' : '#555');
-  }
+  document.body.style.background=color;
+  const tmp=document.createElement('div');tmp.style.color=color;document.body.appendChild(tmp);
+  const rgb=getComputedStyle(tmp).color;document.body.removeChild(tmp);
+  const m=rgb.match(/\d+/g);
+  if(m){const b=(+m[0]*299+ +m[1]*587+ +m[2]*114)/1000;document.documentElement.style.setProperty('--text',b>128?'#000':'#fff');document.documentElement.style.setProperty('--dim',b>128?'#444':'#555');}
 }
 
+// ════════════════════════════════════════════════════════════
+// APPEL API CHAT
+// ════════════════════════════════════════════════════════════
+async function callChat() {
+  const res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages:chatHistory, session_id:SESSION_ID, speaker:currentSpeaker, datetime:new Date().toLocaleString() })
+  });
+  return await res.json();
+}
+
+// ════════════════════════════════════════════════════════════
+// SEND MESSAGE
+// ════════════════════════════════════════════════════════════
 async function sendMessage() {
-  const text = inputEl.value.trim();
-  if (!text || isLoading) return;
-  inputEl.value = ''; inputEl.style.height = 'auto';
-  isLoading = true; sendBtn.disabled = true; stopSpeaking();
+  const text=$input.value.trim();
+  if(!text||isLoading)return;
+  $input.value=''; $input.style.height='auto';
+  isLoading=true; $sendBtn.disabled=true; stopSpeaking();
 
-  if (/ici\s+balde/i.test(text)) setSpeaker('BALDE');
-  else if (/ici\s+nasser/i.test(text)) setSpeaker('NASSER');
-  if (/mode.*(écri|ecri|texte)/i.test(text)) setMode(true);
-  else if (/mode.*(voc|oral|parle|speak)/i.test(text)) setMode(false);
+  // Détecter speaker / mode
+  if(/ici\s+balde/i.test(text)) setSpeaker('BALDE');
+  else if(/ici\s+nasser/i.test(text)) setSpeaker('NASSER');
+  if(/mode.*(écri|ecri|texte)/i.test(text)) setMode(true);
+  else if(/mode.*(voc|oral|parle|speak)/i.test(text)) setMode(false);
 
-  addMessage('user', text);
-  history.push({ role: 'user', content: text });
-  typingEl.classList.add('active');
-  messagesEl.scrollTop = messagesEl.scrollHeight;
+  addMsg('user',text);
+  chatHistory.push({role:'user',content:text});
+  $typing.classList.add('active');
+  $msg.scrollTop=$msg.scrollHeight;
 
   try {
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: history, session_id: SESSION_ID, speaker: currentSpeaker, datetime: new Date().toLocaleString() })
-    });
-    const data = await res.json();
-    let reply = data.reply || "Je suis là.";
+    const data = await callChat();
+    let reply = data.reply || 'Je suis là.';
 
-    // Screenshot
-    if (data.screenshot) {
-      const sdiv = document.createElement('div');
-      sdiv.className = 'msg amin';
-      const img = document.createElement('img');
-      img.src = 'data:image/png;base64,' + data.screenshot;
-      img.style.cssText = 'max-width:100%;border-radius:8px;border:1px solid rgba(255,255,255,0.1);margin-top:6px;';
-      sdiv.appendChild(img);
-      messagesEl.appendChild(sdiv);
-      messagesEl.scrollTop = messagesEl.scrollHeight;
+    // Screenshot PC (V4)
+    if(data.screenshot){
+      const sdiv=document.createElement('div');sdiv.className='msg amin';
+      const img=document.createElement('img');img.className='pc-shot';
+      img.src='data:image/png;base64,'+data.screenshot;
+      sdiv.appendChild(img);$msg.appendChild(sdiv);$msg.scrollTop=$msg.scrollHeight;
     }
 
-    // Couleur de fond
-    const bgMatch = reply.match(/\[BGCOLOR:(#[a-fA-F0-9]{3,6}|[a-z]+)\]/i);
-    if (bgMatch) changeBg(bgMatch[1]);
+    // Couleur fond
+    const bgm=reply.match(/\[BGCOLOR:(#[a-fA-F0-9]{3,6}|[a-z]+)\]/i);
+    if(bgm) changeBg(bgm[1]);
 
-    typingEl.classList.remove('active');
-    addMessage('assistant', reply);
+    $typing.classList.remove('active');
+    addMsg('assistant',reply);
 
     // Fichiers générés
-    if (data.files?.length) showFileCards(data.files);
+    if(data.files?.length) showFileCards(data.files);
 
-    history.push({ role: 'assistant', content: reply });
-    if (!isWriteMode) speakText(reply);
+    chatHistory.push({role:'assistant',content:reply});
+    if(!isWriteMode) speakText(reply);
 
-  } catch (err) {
-    typingEl.classList.remove('active');
-    addMessage('assistant', "Problème de connexion. Réessaie.");
+  } catch(err) {
+    $typing.classList.remove('active');
+    addMsg('assistant','Problème de connexion. Réessaie.');
   }
-  isLoading = false; sendBtn.disabled = false;
+  isLoading=false; $sendBtn.disabled=false;
 }
 
-inputEl.addEventListener('input', function() {
-  this.style.height = 'auto';
-  this.style.height = Math.min(this.scrollHeight, 100) + 'px';
-});
-inputEl.addEventListener('keydown', function(e) {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-});
+// ════════════════════════════════════════════════════════════
+// INPUT AUTO-RESIZE
+// ════════════════════════════════════════════════════════════
+$input.addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';});
+$input.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}});
 
-window.addEventListener('load', () => {
+// ════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════
+window.addEventListener('load',()=>{
   window.speechSynthesis.getVoices();
   startWakeWord();
-  setTimeout(() => {
-    const welcomes = [
-      'Yo. Je suis là. Dis-moi.',
-      'AMIN connecté. Quoi de neuf ?',
-      'Présent. C\'est quoi le programme ?',
-      'Je t\'écoute. Lance-toi.',
-      'Connecté. Qu\'est-ce qu\'on fait ?',
-      'Prêt. Parle-moi.',
-    ];
-    const welcome = welcomes[Math.floor(Math.random() * welcomes.length)];
-    addMessage('assistant', welcome);
-    history.push({ role: 'assistant', content: welcome });
-    speakText(welcome);
-  }, 400);
+  setTimeout(()=>{
+    const msgs=['Yo. Je suis là. Dis-moi.','AMIN connecté. Quoi de neuf ?','Présent. C\'est quoi le programme ?','Je t\'écoute. Lance-toi.','Connecté. Qu\'est-ce qu\'on fait ?','Prêt. Parle-moi.'];
+    const w=msgs[Math.floor(Math.random()*msgs.length)];
+    addMsg('assistant',w);
+    chatHistory.push({role:'assistant',content:w});
+    speakText(w);
+  },400);
 });
 </script>
 </body>
