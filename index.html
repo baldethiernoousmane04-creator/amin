@@ -8,13 +8,9 @@
 <meta name="apple-mobile-web-app-title" content="AMIN">
 <title>AMIN</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<!-- Marked — rendu Markdown -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
-<!-- JSZip — lecture/création ZIP -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<!-- jsPDF — génération PDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<!-- SheetJS — génération Excel -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
@@ -25,6 +21,112 @@
 :root { --bg:#000; --border:rgba(255,255,255,0.08); --text:#fff; --dim:#555; }
 html,body { height:100%; height:100dvh; }
 body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; overflow:hidden; transition:background 1s ease; }
+
+/* ════════════════════════════════════════════════════════════
+   LOCK SCREEN
+   ════════════════════════════════════════════════════════════ */
+#lockScreen {
+  position:fixed; inset:0; background:#000; z-index:999;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:0;
+}
+#lockScreen.hidden { display:none; }
+
+.lock-logo {
+  width:70px; height:70px; border-radius:50%;
+  background:#0a0a0a; border:1px solid rgba(255,255,255,0.12);
+  display:flex; align-items:center; justify-content:center;
+  margin-bottom:24px;
+}
+.lock-logo svg { width:34px; height:34px; }
+
+.lock-title {
+  font-size:22px; font-weight:600; letter-spacing:4px; color:#fff;
+  margin-bottom:6px;
+}
+.lock-sub {
+  font-size:11px; color:#333; letter-spacing:2px; margin-bottom:48px;
+}
+
+/* Tabs */
+.lock-tabs {
+  display:flex; gap:0; margin-bottom:32px;
+  border:1px solid #1e1e1e; border-radius:10px; overflow:hidden;
+}
+.lock-tab {
+  padding:8px 24px; font-size:11px; font-weight:600; letter-spacing:1.5px;
+  background:transparent; border:none; color:#333; cursor:pointer;
+  font-family:'Inter',sans-serif; transition:all .2s;
+}
+.lock-tab.active { background:#fff; color:#000; }
+
+/* Password form */
+.lock-pw-wrap {
+  display:flex; flex-direction:column; align-items:center; gap:14px;
+  width:280px;
+}
+.lock-pw-wrap.hidden { display:none; }
+.lock-input {
+  width:100%; background:#0a0a0a; border:1px solid #1e1e1e;
+  border-radius:10px; padding:12px 16px; color:#fff;
+  font-family:'Inter',sans-serif; font-size:18px; letter-spacing:4px;
+  text-align:center; outline:none; transition:border-color .2s;
+}
+.lock-input:focus { border-color:#333; }
+.lock-input::placeholder { letter-spacing:1px; font-size:12px; color:#2a2a2a; }
+.lock-btn {
+  width:100%; padding:12px; background:#fff; border:none; border-radius:10px;
+  color:#000; font-size:13px; font-weight:600; letter-spacing:1px;
+  cursor:pointer; font-family:'Inter',sans-serif; transition:opacity .2s;
+}
+.lock-btn:hover { opacity:.85; }
+.lock-btn:active { opacity:.7; }
+.lock-error {
+  font-size:11px; color:#ff3b30; letter-spacing:.5px; min-height:16px; text-align:center;
+}
+.lock-attempts { font-size:10px; color:#333; }
+
+/* Voice auth */
+.lock-voice-wrap {
+  display:flex; flex-direction:column; align-items:center; gap:20px;
+  width:280px;
+}
+.lock-voice-wrap.hidden { display:none; }
+.lock-mic-ring {
+  width:90px; height:90px; border-radius:50%;
+  border:1px solid #1e1e1e; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:all .3s; position:relative;
+}
+.lock-mic-ring.listening {
+  border-color:rgba(255,255,255,0.3);
+  box-shadow: 0 0 0 8px rgba(255,255,255,0.04), 0 0 0 16px rgba(255,255,255,0.02);
+  animation: pulse-ring 1.5s infinite;
+}
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.15), 0 0 0 0 rgba(255,255,255,0.08); }
+  70%  { box-shadow: 0 0 0 12px rgba(255,255,255,0), 0 0 0 20px rgba(255,255,255,0); }
+  100% { box-shadow: 0 0 0 0 rgba(255,255,255,0), 0 0 0 0 rgba(255,255,255,0); }
+}
+.lock-mic-ring svg { width:28px; height:28px; fill:#fff; }
+.lock-voice-status {
+  font-size:12px; color:#333; letter-spacing:.5px; text-align:center; min-height:18px;
+}
+.lock-voice-hint {
+  font-size:10px; color:#222; text-align:center; line-height:1.6;
+}
+.lock-voice-error {
+  font-size:11px; color:#ff3b30; letter-spacing:.5px; text-align:center; min-height:16px;
+}
+
+/* Blocage */
+.lock-blocked {
+  display:none; flex-direction:column; align-items:center; gap:10px;
+  width:280px; text-align:center;
+}
+.lock-blocked.active { display:flex; }
+.lock-blocked p { font-size:13px; color:#ff3b30; }
+.lock-blocked span { font-size:28px; font-weight:600; color:#fff; }
+.lock-blocked small { font-size:10px; color:#333; }
 
 /* ════════════════════════════════════════════════════════════
    APP LAYOUT
@@ -69,7 +171,6 @@ body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; 
 @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .msg.user { align-items:flex-end; }
 .msg.amin { align-items:flex-start; }
-/* Bulles texte */
 .bubble { max-width:85%; padding:10px 14px; border-radius:14px; font-size:14px; line-height:1.55; word-break:break-word; }
 .bubble p { margin:0 0 6px; } .bubble p:last-child { margin-bottom:0; }
 .bubble ul,.bubble ol { padding-left:16px; margin:4px 0; }
@@ -78,16 +179,41 @@ body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; 
 .bubble pre code { background:none; padding:0; }
 .msg.amin .bubble { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); border-bottom-left-radius:4px; }
 .msg.user .bubble { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1); border-bottom-right-radius:4px; white-space:pre-wrap; }
-/* Bulle fichier importé */
 .file-bubble { max-width:85%; padding:8px 12px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); font-size:12px; color:#888; display:flex; align-items:center; gap:8px; }
 .file-bubble .fb-name { color:#fff; font-size:13px; font-weight:500; }
 .file-bubble .fb-size { font-size:10px; color:#333; }
 
 /* ════════════════════════════════════════════════════════════
-   CARTES FICHIERS GÉNÉRÉS — style Claude
+   IMAGE GÉNÉRÉE — Pollinations.ai
+   ════════════════════════════════════════════════════════════ */
+.img-card {
+  max-width:85%; border-radius:12px; overflow:hidden;
+  background:#111; border:1px solid #222; margin-top:4px;
+}
+.img-card img {
+  width:100%; display:block; border-radius:12px 12px 0 0;
+  min-height:120px; background:#0a0a0a;
+}
+.img-card-bar {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 12px; border-top:1px solid #1e1e1e;
+}
+.img-card-label { font-size:11px; color:#555; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
+.img-card-dl {
+  background:transparent; border:1px solid #2a2a2a; border-radius:6px;
+  color:#888; font-size:11px; padding:4px 10px; cursor:pointer;
+  font-family:'Inter',sans-serif; transition:all .15s; white-space:nowrap;
+}
+.img-card-dl:hover { border-color:#444; color:#fff; }
+.img-loading {
+  display:flex; align-items:center; justify-content:center;
+  height:160px; font-size:11px; color:#333; letter-spacing:1px;
+}
+
+/* ════════════════════════════════════════════════════════════
+   CARTES FICHIERS GÉNÉRÉS
    ════════════════════════════════════════════════════════════ */
 .file-card { max-width:85%; padding:12px 14px; border-radius:12px; background:#1a1a1a; border:1px solid #2a2a2a; display:flex; align-items:center; gap:12px; margin-top:4px; }
-/* Icône type */
 .fc-ico { width:38px; height:38px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; letter-spacing:.3px; flex-shrink:0; }
 .t-js   {background:#2a2000;color:#f7df1e} .t-ts   {background:#001a2e;color:#3178c6}
 .t-py   {background:#001a2a;color:#4b8bbe} .t-html {background:#2a0f00;color:#e34c26}
@@ -101,25 +227,20 @@ body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; 
 .t-svg  {background:#1a0020;color:#ff61f6} .t-qr   {background:#111;color:#fff}
 .t-c    {background:#001020;color:#5c8ebf} .t-cpp  {background:#001020;color:#9c70bf}
 .t-java {background:#1a0800;color:#ea2d2e} .t-def  {background:#1e1e1e;color:#666}
-/* Info */
 .fc-info { flex:1; min-width:0; }
 .fc-name { font-size:13px; font-weight:600; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fc-sub  { font-size:11px; color:#555; margin-top:2px; }
-/* Boutons */
 .fc-actions { display:flex; gap:6px; flex-shrink:0; }
 .fc-btn { background:transparent; border:1px solid #333; border-radius:8px; color:#ccc; font-size:12px; font-weight:500; padding:6px 12px; cursor:pointer; transition:all .15s; font-family:'Inter',sans-serif; white-space:nowrap; }
 .fc-btn:hover { background:#222; border-color:#444; color:#fff; }
 .fc-btn:active { transform:scale(.96); }
 .fc-btn.dl { background:#fff; border-color:#fff; color:#000; }
 .fc-btn.dl:hover { background:#e0e0e0; }
-/* QR dans le chat */
 .qr-wrap { max-width:85%; padding:16px; border-radius:12px; background:#fff; display:inline-flex; flex-direction:column; align-items:center; gap:8px; margin-top:4px; }
 .qr-label { font-size:11px; color:#444; font-weight:500; }
 .qr-dl { background:transparent; border:1px solid #ccc; border-radius:6px; color:#333; font-size:11px; padding:4px 10px; cursor:pointer; font-family:'Inter',sans-serif; }
-/* SVG preview */
 .svg-wrap { max-width:85%; background:#1a1a1a; border:1px solid #2a2a2a; border-radius:12px; padding:12px; margin-top:4px; }
 .svg-wrap svg { max-width:100%; height:auto; display:block; }
-/* Screenshot PC */
 .pc-shot { max-width:85%; border-radius:8px; border:1px solid rgba(255,255,255,.1); display:block; margin-top:4px; }
 
 /* ════════════════════════════════════════════════════════════
@@ -201,9 +322,58 @@ textarea:focus { border-color:rgba(255,255,255,.15); }
 </style>
 </head>
 <body>
-<div class="app">
 
-  <!-- ═══════════════════ HEADER ═══════════════════ -->
+<!-- ═══════════════════════════════════════════════════════════
+     LOCK SCREEN
+     ═══════════════════════════════════════════════════════════ -->
+<div id="lockScreen">
+  <div class="lock-logo">
+    <svg viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="11" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+      <path d="M8 16L10.5 9L12 13L13.5 9L16 16" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="12" cy="12" r="2" fill="rgba(255,255,255,0.1)"/>
+    </svg>
+  </div>
+  <div class="lock-title">AMIN</div>
+  <div class="lock-sub">SYSTÈME SÉCURISÉ</div>
+
+  <!-- Tabs -->
+  <div class="lock-tabs">
+    <button class="lock-tab active" id="tabPw" onclick="switchLockTab('pw')">MOT DE PASSE</button>
+    <button class="lock-tab" id="tabVoice" onclick="switchLockTab('voice')">VOCAL</button>
+  </div>
+
+  <!-- Blocage -->
+  <div class="lock-blocked" id="lockBlocked">
+    <p>Accès bloqué</p>
+    <span id="blockTimer">30</span>
+    <small>secondes restantes</small>
+  </div>
+
+  <!-- Password -->
+  <div class="lock-pw-wrap" id="lockPwWrap">
+    <input class="lock-input" id="lockPwInput" type="password" placeholder="Mot de passe" autocomplete="off" maxlength="20"/>
+    <button class="lock-btn" onclick="checkPassword()">ACCÉDER</button>
+    <div class="lock-error" id="lockPwError"></div>
+    <div class="lock-attempts" id="lockAttempts"></div>
+  </div>
+
+  <!-- Voice -->
+  <div class="lock-voice-wrap hidden" id="lockVoiceWrap">
+    <div class="lock-mic-ring" id="lockMicRing" onclick="toggleLockMic()">
+      <svg viewBox="0 0 24 24"><path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm0 2a2 2 0 0 0-2 2v6a2 2 0 0 0 4 0V5a2 2 0 0 0-2-2zm-1 14.93A8 8 0 0 1 4 11H2a10 10 0 0 0 9 9.93V23h2v-2.07A10 10 0 0 0 22 11h-2a8 8 0 0 1-7 7.93z"/></svg>
+    </div>
+    <div class="lock-voice-status" id="lockVoiceStatus">Appuie sur le micro</div>
+    <div class="lock-voice-hint">Dis ta phrase secrète<br>pour déverrouiller AMIN</div>
+    <div class="lock-voice-error" id="lockVoiceError"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     APP PRINCIPALE
+     ═══════════════════════════════════════════════════════════ -->
+<div class="app">
+  <!-- HEADER -->
   <div class="header">
     <div class="avatar">
       <svg viewBox="0 0 24 24" fill="none">
@@ -227,16 +397,16 @@ textarea:focus { border-color:rgba(255,255,255,.15); }
     </div>
   </div>
 
-  <!-- ═══════════════════ MESSAGES ═══════════════════ -->
+  <!-- MESSAGES -->
   <div class="messages" id="messages"></div>
 
-  <!-- ═══════════════════ TYPING ═══════════════════ -->
+  <!-- TYPING -->
   <div class="typing" id="typing">
     <div class="dots"><span></span><span></span><span></span></div>
     <span class="typing-text">AMIN...</span>
   </div>
 
-  <!-- ═══════════════════ INPUT ═══════════════════ -->
+  <!-- INPUT -->
   <div class="input-wrap">
     <button class="ibtn mic" id="micBtn" onclick="toggleMic()">
       <svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm0 2a2 2 0 0 0-2 2v6a2 2 0 0 0 4 0V5a2 2 0 0 0-2-2zm-1 14.93A8 8 0 0 1 4 11H2a10 10 0 0 0 9 9.93V23h2v-2.07A10 10 0 0 0 22 11h-2a8 8 0 0 1-7 7.93z"/></svg>
@@ -252,13 +422,13 @@ textarea:focus { border-color:rgba(255,255,255,.15); }
   </div>
 </div>
 
-<!-- ═══════════════════ DROP OVERLAY ═══════════════════ -->
+<!-- DROP OVERLAY -->
 <div class="drop-overlay" id="dropOverlay">
   <p>📂 Dépose ton fichier ici</p>
   <small>Tous types — code, PDF, Word, Excel, ZIP, images...</small>
 </div>
 
-<!-- ═══════════════════ PANNEAU HISTORIQUE ═══════════════════ -->
+<!-- PANNEAU HISTORIQUE -->
 <div class="fp" id="fp">
   <div class="fp-head">
     <span class="fp-title">FICHIERS</span>
@@ -269,7 +439,7 @@ textarea:focus { border-color:rgba(255,255,255,.15); }
   </div>
 </div>
 
-<!-- ═══════════════════ ÉDITEUR ═══════════════════ -->
+<!-- ÉDITEUR -->
 <div class="editor" id="editor">
   <div class="ed-head">
     <input class="ed-fname" id="edFname" type="text" placeholder="fichier.py"/>
@@ -287,8 +457,167 @@ textarea:focus { border-color:rgba(255,255,255,.15); }
 
 <script>
 'use strict';
+
 // ════════════════════════════════════════════════════════════
-// STATE GLOBAL
+// AUTHENTIFICATION
+// ════════════════════════════════════════════════════════════
+const LOCK_PASSWORD    = 'BM0101';
+const VOICE_PHRASE     = 'override protocol alpha';
+let lockAttempts       = 0;
+let lockBlocked        = false;
+let blockInterval      = null;
+let lockRecognition    = null;
+let lockMicActive      = false;
+
+function switchLockTab(tab) {
+  document.getElementById('tabPw').classList.toggle('active', tab === 'pw');
+  document.getElementById('tabVoice').classList.toggle('active', tab === 'voice');
+  document.getElementById('lockPwWrap').classList.toggle('hidden', tab !== 'pw');
+  document.getElementById('lockVoiceWrap').classList.toggle('hidden', tab !== 'voice');
+  if (tab === 'voice') initLockRecognition();
+  else stopLockMic();
+}
+
+function checkPassword() {
+  if (lockBlocked) return;
+  const val = document.getElementById('lockPwInput').value;
+  if (val === LOCK_PASSWORD) {
+    unlockApp('password');
+  } else {
+    lockAttempts++;
+    document.getElementById('lockPwInput').value = '';
+    const remaining = 3 - lockAttempts;
+    if (lockAttempts >= 3) {
+      startBlockTimer();
+    } else {
+      document.getElementById('lockPwError').textContent = 'Mot de passe incorrect.';
+      document.getElementById('lockAttempts').textContent = remaining + ' tentative(s) restante(s)';
+      setTimeout(() => { document.getElementById('lockPwError').textContent = ''; }, 2000);
+    }
+  }
+}
+
+function startBlockTimer() {
+  lockBlocked = true;
+  let seconds = 30;
+  document.getElementById('lockPwWrap').classList.add('hidden');
+  document.getElementById('lockBlocked').classList.add('active');
+  document.getElementById('blockTimer').textContent = seconds;
+  blockInterval = setInterval(() => {
+    seconds--;
+    document.getElementById('blockTimer').textContent = seconds;
+    if (seconds <= 0) {
+      clearInterval(blockInterval);
+      lockBlocked = false;
+      lockAttempts = 0;
+      document.getElementById('lockBlocked').classList.remove('active');
+      document.getElementById('lockPwWrap').classList.remove('hidden');
+      document.getElementById('lockPwError').textContent = '';
+      document.getElementById('lockAttempts').textContent = '';
+    }
+  }, 1000);
+}
+
+function initLockRecognition() {
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    document.getElementById('lockVoiceStatus').textContent = 'Micro non supporté sur ce navigateur';
+    return;
+  }
+}
+
+function toggleLockMic() {
+  if (lockMicActive) { stopLockMic(); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  lockRecognition = new SR();
+  lockRecognition.lang = 'en-US';
+  lockRecognition.continuous = false;
+  lockRecognition.interimResults = false;
+  lockRecognition.maxAlternatives = 5;
+
+  lockMicActive = true;
+  document.getElementById('lockMicRing').classList.add('listening');
+  document.getElementById('lockVoiceStatus').textContent = 'En écoute...';
+  document.getElementById('lockVoiceError').textContent = '';
+
+  lockRecognition.onresult = (e) => {
+    const alts = Array.from({ length: e.results[0].length }, (_, i) =>
+      e.results[0][i].transcript.toLowerCase().trim()
+    );
+    const matched = alts.some(t => {
+      const clean = t.replace(/[^a-z\s]/g, '').trim();
+      return clean.includes('override protocol alpha') ||
+             clean.includes('override') && clean.includes('protocol') && clean.includes('alpha');
+    });
+    stopLockMic();
+    if (matched) {
+      unlockApp('voice');
+    } else {
+      document.getElementById('lockVoiceError').textContent = 'Phrase non reconnue. Réessaie.';
+      document.getElementById('lockVoiceStatus').textContent = 'Appuie sur le micro';
+    }
+  };
+
+  lockRecognition.onerror = () => {
+    stopLockMic();
+    document.getElementById('lockVoiceStatus').textContent = 'Erreur micro. Réessaie.';
+  };
+
+  lockRecognition.onend = () => { stopLockMic(); };
+
+  try { lockRecognition.start(); } catch(e) {}
+}
+
+function stopLockMic() {
+  lockMicActive = false;
+  document.getElementById('lockMicRing').classList.remove('listening');
+  if (document.getElementById('lockVoiceStatus').textContent === 'En écoute...') {
+    document.getElementById('lockVoiceStatus').textContent = 'Appuie sur le micro';
+  }
+  try { lockRecognition?.stop(); } catch(e) {}
+}
+
+function unlockApp(method) {
+  stopLockMic();
+  // AMIN dit "Accès autorisé, BALDE" à voix haute
+  const greeting = method === 'voice'
+    ? 'Accès autorisé, BALDE. Bienvenue.'
+    : 'Accès autorisé, BALDE.';
+  speakLockSuccess(greeting, () => {
+    document.getElementById('lockScreen').classList.add('hidden');
+    initApp();
+  });
+}
+
+function speakLockSuccess(text, callback) {
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'fr-FR'; u.rate = 0.95; u.pitch = 0.8; u.volume = 1;
+  const voices = window.speechSynthesis.getVoices();
+  const male = ['thomas','paul','nicolas','guillaume','jean','pierre','henri','claude'];
+  const female = ['amelie','camille','marie','lucie','alice','julie','victoria','sophie','emma','lea'];
+  const voice = voices.find(v => v.lang.startsWith('fr') && male.some(n => v.name.toLowerCase().includes(n)))
+             || voices.find(v => v.lang.startsWith('fr') && !female.some(n => v.name.toLowerCase().includes(n)))
+             || voices.find(v => v.lang.startsWith('fr'));
+  if (voice) u.voice = voice;
+  u.onend = () => { if (callback) setTimeout(callback, 300); };
+  u.onerror = () => { if (callback) setTimeout(callback, 300); };
+  window.speechSynthesis.speak(u);
+  // fallback si synthèse vocale bloquée
+  setTimeout(() => {
+    if (document.getElementById('lockScreen') && !document.getElementById('lockScreen').classList.contains('hidden')) {
+      if (callback) callback();
+    }
+  }, 3000);
+}
+
+// Enter sur le champ mot de passe
+document.getElementById('lockPwInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') checkPassword();
+});
+
+// ════════════════════════════════════════════════════════════
+// STATE GLOBAL APP
 // ════════════════════════════════════════════════════════════
 const SESSION_ID    = 'session_' + Date.now();
 const $msg          = document.getElementById('messages');
@@ -313,7 +642,7 @@ let fileHistory    = [];
 let editorFile     = null;
 
 // ════════════════════════════════════════════════════════════
-// UTILS FICHIERS — classes CSS, labels, MIME
+// UTILS FICHIERS
 // ════════════════════════════════════════════════════════════
 const FC_CLASS = {
   js:'t-js',ts:'t-ts',py:'t-py',html:'t-html',css:'t-css',
@@ -343,12 +672,80 @@ const MIME = {
 function fcClass(ext){ return FC_CLASS[(ext||'').toLowerCase()]||'t-def'; }
 function fcLabel(ext){ const e=(ext||'').toLowerCase(); return FC_LABEL[e]||(ext||'FILE').toUpperCase().slice(0,4); }
 function getMime(ext){ return MIME[(ext||'').toLowerCase()]||'application/octet-stream'; }
+function safeAtob(str) { try { return atob(str); } catch(e) { return str; } }
+function safeBtoa(str) { try { return btoa(unescape(encodeURIComponent(str))); } catch(e) { try { return btoa(str); } catch(e2) { return str; } } }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-function safeAtob(str) {
-  try { return atob(str); } catch(e) { return str; }
+// ════════════════════════════════════════════════════════════
+// POLLINATIONS.AI — Génération d'images
+// ════════════════════════════════════════════════════════════
+function extractImages(text) {
+  const images = [];
+  const regex = /\[IMAGE:([^\]]+)\]/g;
+  let m;
+  while ((m = regex.exec(text)) !== null) {
+    images.push(m[1].trim());
+  }
+  return images;
 }
-function safeBtoa(str) {
-  try { return btoa(unescape(encodeURIComponent(str))); } catch(e) { try { return btoa(str); } catch(e2) { return str; } }
+
+function removeImageTags(text) {
+  return text.replace(/\[IMAGE:[^\]]*\]/g, '').trim();
+}
+
+function buildImageUrl(prompt) {
+  const encoded = encodeURIComponent(prompt);
+  return `https://image.pollinations.ai/prompt/${encoded}?width=800&height=600&nologo=true&seed=${Math.floor(Math.random()*99999)}`;
+}
+
+function showImageCards(prompts) {
+  if (!prompts?.length) return;
+  prompts.forEach(prompt => {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'msg amin';
+    const card = document.createElement('div');
+    card.className = 'img-card';
+
+    const loadDiv = document.createElement('div');
+    loadDiv.className = 'img-loading';
+    loadDiv.textContent = 'Génération en cours...';
+
+    const img = document.createElement('img');
+    const url = buildImageUrl(prompt);
+    img.alt = prompt;
+    img.style.display = 'none';
+
+    img.onload = () => {
+      loadDiv.style.display = 'none';
+      img.style.display = 'block';
+      $msg.scrollTop = $msg.scrollHeight;
+    };
+    img.onerror = () => {
+      loadDiv.textContent = 'Erreur génération image.';
+    };
+    img.src = url;
+
+    const bar = document.createElement('div');
+    bar.className = 'img-card-bar';
+    const label = document.createElement('div');
+    label.className = 'img-card-label';
+    label.textContent = prompt;
+    const dlBtn = document.createElement('button');
+    dlBtn.className = 'img-card-dl';
+    dlBtn.textContent = 'Télécharger';
+    dlBtn.onclick = () => {
+      const a = document.createElement('a');
+      a.href = url; a.download = 'amin_image.jpg';
+      a.target = '_blank';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+    };
+    bar.append(label, dlBtn);
+    card.append(loadDiv, img, bar);
+    msgDiv.appendChild(card);
+    $msg.appendChild(msgDiv);
+    $msg.scrollTop = $msg.scrollHeight;
+  });
 }
 
 // ════════════════════════════════════════════════════════════
@@ -367,7 +764,6 @@ async function downloadFile(ext, filename, content) {
   try {
     let blob;
     if (extL === 'qr') {
-      // QR → télécharger en PNG
       const canvas = document.createElement('canvas');
       await renderQR(content, canvas, 400);
       canvas.toBlob(b => triggerDownload(URL.createObjectURL(b), filename.replace(/\.qr$/i,'.png')));
@@ -400,7 +796,7 @@ async function downloadFile(ext, filename, content) {
 }
 
 // ════════════════════════════════════════════════════════════
-// QR CODE — API gratuite qrserver.com
+// QR CODE
 // ════════════════════════════════════════════════════════════
 function renderQR(text, canvas, size) {
   return new Promise(resolve => {
@@ -427,9 +823,7 @@ function showFileCards(files) {
 
   files.forEach(f => {
     const ext = (f.ext||'').toLowerCase();
-
     if (ext === 'qr') {
-      // QR affiché directement dans le chat
       const msgDiv = document.createElement('div');
       msgDiv.className = 'msg amin';
       const qrWrap = document.createElement('div');
@@ -446,9 +840,7 @@ function showFileCards(files) {
       msgDiv.appendChild(qrWrap);
       $msg.appendChild(msgDiv);
       renderQR(f.content, canvas, 200);
-
     } else if (ext === 'svg') {
-      // SVG prévisualisé inline
       const msgDiv = document.createElement('div');
       msgDiv.className = 'msg amin';
       const svgWrap = document.createElement('div');
@@ -460,9 +852,7 @@ function showFileCards(files) {
       } catch(e) { svgWrap.textContent = 'SVG non lisible.'; }
       msgDiv.appendChild(svgWrap);
       $msg.appendChild(msgDiv);
-      // + carte téléchargement
       wrap.appendChild(buildCard(f));
-
     } else {
       wrap.appendChild(buildCard(f));
     }
@@ -491,10 +881,6 @@ function buildCard(f) {
   return card;
 }
 
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
 // ════════════════════════════════════════════════════════════
 // HISTORIQUE FICHIERS
 // ════════════════════════════════════════════════════════════
@@ -507,9 +893,7 @@ function addToHistory(files) {
   $filesBtn.textContent = `FICHIERS (${fileHistory.length})`;
 }
 
-function toggleFP() {
-  document.getElementById('fp').classList.toggle('open');
-}
+function toggleFP() { document.getElementById('fp').classList.toggle('open'); }
 
 function renderFP() {
   const body = document.getElementById('fpBody');
@@ -549,9 +933,7 @@ function openEditor(ext, name, content) {
   document.getElementById('editor').classList.add('open');
   document.getElementById('fp').classList.remove('open');
 }
-
 function closeEditor() { document.getElementById('editor').classList.remove('open'); }
-
 function updateEdStatus() {
   const ta = document.getElementById('edTa');
   const fname = document.getElementById('edFname').value;
@@ -559,7 +941,6 @@ function updateEdStatus() {
   document.getElementById('edChars').textContent = ta.value.length + ' car.';
   document.getElementById('edExt').textContent = (fname.split('.').pop()||'—').toUpperCase();
 }
-
 function edSave() {
   const content = document.getElementById('edTa').value;
   const name    = document.getElementById('edFname').value;
@@ -573,14 +954,12 @@ function edSave() {
   btn.textContent = '✓ Sauvegardé';
   setTimeout(() => { btn.textContent = 'Sauvegarder'; }, 1500);
 }
-
 function edDownload() {
   const content = document.getElementById('edTa').value;
   const name    = document.getElementById('edFname').value;
   const ext     = name.split('.').pop();
   downloadFile(ext, name, safeBtoa(content));
 }
-
 document.getElementById('edTa').addEventListener('input', updateEdStatus);
 document.getElementById('edFname').addEventListener('input', updateEdStatus);
 document.getElementById('edTa').addEventListener('keydown', e => {
@@ -594,20 +973,17 @@ document.getElementById('edTa').addEventListener('keydown', e => {
 });
 
 // ════════════════════════════════════════════════════════════
-// IMPORT FICHIERS — tous types (V5 étendu)
+// IMPORT FICHIERS
 // ════════════════════════════════════════════════════════════
-function isText(name)     { return /\.(txt|md|html|css|js|ts|mjs|py|java|c|cpp|h|json|xml|yaml|yml|csv|sql|sh|bat|ps1|dockerfile|gitignore|env|ini|cfg|conf|log|rs|go|rb|php|swift|kt|r|m|lua|dart)$/i.test(name); }
+function isText(name)      { return /\.(txt|md|html|css|js|ts|mjs|py|java|c|cpp|h|json|xml|yaml|yml|csv|sql|sh|bat|ps1|dockerfile|gitignore|env|ini|cfg|conf|log|rs|go|rb|php|swift|kt|r|m|lua|dart)$/i.test(name); }
 function isUploadable(name){ return /\.(pdf|docx|doc|xlsx|xls|pptx|ppt|jpg|jpeg|png|webp|gif)$/i.test(name); }
 
 async function handleFile(input) {
   const file = input.files[0];
   if (!file) return;
   if (file.size > 20*1024*1024) { addMsg('assistant','Fichier trop lourd. Max 20MB.'); input.value=''; return; }
-
   const question = $input.value.trim() || 'Analyse ce fichier et dis-moi ce que c\'est.';
   $input.value = '';
-
-  // Bulle fichier importé
   const div = document.createElement('div');
   div.className = 'msg user';
   const fb = document.createElement('div');
@@ -616,14 +992,10 @@ async function handleFile(input) {
   div.appendChild(fb);
   $msg.appendChild(div);
   $msg.scrollTop = $msg.scrollHeight;
-
   isLoading = true; $sendBtn.disabled = true; $typing.classList.add('active');
-
   try {
     let reply = '';
-
     if (isText(file.name)) {
-      // Lire comme texte → envoyer dans le chat
       const text = await file.text();
       const trunc = text.length > 8000 ? text.slice(0,8000)+'\n\n[... tronqué ...]' : text;
       const userMsg = `[Fichier: ${file.name}]\n\`\`\`\n${trunc}\n\`\`\`\n\n${question}`;
@@ -631,9 +1003,7 @@ async function handleFile(input) {
       const data = await callChat();
       reply = data.reply || 'Analysé.';
       if (data.files?.length) showFileCards(data.files);
-
     } else if (file.name.toLowerCase().endsWith('.zip')) {
-      // Décompresser et analyser
       const buf  = await file.arrayBuffer();
       const zip  = await JSZip.loadAsync(buf);
       const names = Object.keys(zip.files).filter(n => !zip.files[n].dir);
@@ -646,23 +1016,18 @@ async function handleFile(input) {
       const data = await callChat();
       reply = data.reply || 'ZIP analysé.';
       if (data.files?.length) showFileCards(data.files);
-
     } else if (isUploadable(file.name)) {
-      // Envoyer à /api/upload (PDF, images, Office)
       const b64 = await new Promise(r => { const fr=new FileReader(); fr.onload=e=>r(e.target.result.split(',')[1]); fr.readAsDataURL(file); });
       const res = await fetch('/api/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ file:b64, filename:file.name, question, speaker:currentSpeaker, datetime:new Date().toLocaleString() }) });
       const data = await res.json();
       reply = data.reply || 'Fichier analysé.';
-
     } else {
       reply = `Fichier reçu : **${file.name}** (${(file.size/1024).toFixed(0)}KB). Ce type n'est pas lisible directement. Dis-moi ce que tu veux faire avec.`;
     }
-
     $typing.classList.remove('active');
     addMsg('assistant', reply);
     chatHistory.push({ role:'assistant', content:reply });
     if (!isWriteMode) speakText(reply);
-
   } catch(e) {
     $typing.classList.remove('active');
     addMsg('assistant', 'Erreur lecture fichier.');
@@ -683,7 +1048,7 @@ document.addEventListener('drop', e => {
 });
 
 // ════════════════════════════════════════════════════════════
-// SPEAKER & MODE (V2)
+// SPEAKER & MODE
 // ════════════════════════════════════════════════════════════
 function setSpeaker(name) { currentSpeaker=name; $speakerBadge.textContent='· '+name; }
 function setMode(write) {
@@ -700,14 +1065,12 @@ function setMode(write) {
   document.getElementById('clock').textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0');
   setTimeout(clock,1000);
 })();
-
 async function loadWeather() {
   try { const r=await fetch('/api/weather'); const d=await r.json(); if(d.temp) document.getElementById('weather').textContent='Dakar '+Math.round(d.temp)+'°C '+d.desc; } catch(e){}
 }
-loadWeather(); setInterval(loadWeather,600000);
 
 // ════════════════════════════════════════════════════════════
-// SYNTHÈSE VOCALE (V2)
+// SYNTHÈSE VOCALE
 // ════════════════════════════════════════════════════════════
 window.speechSynthesis.getVoices();
 window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
@@ -724,7 +1087,7 @@ function getMaleVoice() {
 function cleanTTS(t) {
   return t.replace(/[\u{1F000}-\u{1FFFF}]/gu,'').replace(/[\u{2600}-\u{27BF}]/gu,'')
     .replace(/\*\*/g,'').replace(/\*/g,'').replace(/#{1,6}\s/g,'')
-    .replace(/\[BGCOLOR:[^\]]*\]/g,'').replace(/[-•]/g,',').trim();
+    .replace(/\[BGCOLOR:[^\]]*\]/g,'').replace(/\[IMAGE:[^\]]*\]/g,'').replace(/[-•]/g,',').trim();
 }
 
 function stopSpeaking() {
@@ -745,7 +1108,7 @@ function speakText(text) {
 }
 
 // ════════════════════════════════════════════════════════════
-// WAKE WORD & MIC (V2)
+// WAKE WORD & MIC
 // ════════════════════════════════════════════════════════════
 function startWakeWord() {
   if (!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)) return;
@@ -783,7 +1146,7 @@ function addMsg(role, text) {
   div.className='msg '+(role==='assistant'?'amin':'user');
   const bubble=document.createElement('div');
   bubble.className='bubble';
-  if(role==='assistant') bubble.innerHTML=marked.parse(text.replace(/\[BGCOLOR:[^\]]*\]/g,'').trim());
+  if(role==='assistant') bubble.innerHTML=marked.parse(text.replace(/\[BGCOLOR:[^\]]*\]/g,'').replace(/\[IMAGE:[^\]]*\]/g,'').trim());
   else bubble.textContent=text;
   div.appendChild(bubble);
   $msg.appendChild(div);
@@ -819,7 +1182,6 @@ async function sendMessage() {
   $input.value=''; $input.style.height='auto';
   isLoading=true; $sendBtn.disabled=true; stopSpeaking();
 
-  // Détecter speaker / mode
   if(/ici\s+balde/i.test(text)) setSpeaker('BALDE');
   else if(/ici\s+nasser/i.test(text)) setSpeaker('NASSER');
   if(/mode.*(écri|ecri|texte)/i.test(text)) setMode(true);
@@ -834,7 +1196,7 @@ async function sendMessage() {
     const data = await callChat();
     let reply = data.reply || 'Je suis là.';
 
-    // Screenshot PC (V4)
+    // Screenshot PC
     if(data.screenshot){
       const sdiv=document.createElement('div');sdiv.className='msg amin';
       const img=document.createElement('img');img.className='pc-shot';
@@ -842,12 +1204,21 @@ async function sendMessage() {
       sdiv.appendChild(img);$msg.appendChild(sdiv);$msg.scrollTop=$msg.scrollHeight;
     }
 
+    // Images Pollinations.ai
+    const imagesToGen = extractImages(reply);
+    if (imagesToGen.length) {
+      reply = removeImageTags(reply);
+    }
+
     // Couleur fond
     const bgm=reply.match(/\[BGCOLOR:(#[a-fA-F0-9]{3,6}|[a-z]+)\]/i);
     if(bgm) changeBg(bgm[1]);
 
     $typing.classList.remove('active');
-    addMsg('assistant',reply);
+    if (reply.trim()) addMsg('assistant', reply);
+
+    // Afficher images après le texte
+    if (imagesToGen.length) showImageCards(imagesToGen);
 
     // Fichiers générés
     if(data.files?.length) showFileCards(data.files);
@@ -869,18 +1240,25 @@ $input.addEventListener('input',function(){this.style.height='auto';this.style.h
 $input.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}});
 
 // ════════════════════════════════════════════════════════════
-// INIT
+// INIT APP (appelé après déverrouillage)
 // ════════════════════════════════════════════════════════════
-window.addEventListener('load',()=>{
+function initApp() {
   window.speechSynthesis.getVoices();
   startWakeWord();
+  loadWeather();
+  setInterval(loadWeather, 600000);
   setTimeout(()=>{
     const msgs=['Yo. Je suis là. Dis-moi.','AMIN connecté. Quoi de neuf ?','Présent. C\'est quoi le programme ?','Je t\'écoute. Lance-toi.','Connecté. Qu\'est-ce qu\'on fait ?','Prêt. Parle-moi.'];
     const w=msgs[Math.floor(Math.random()*msgs.length)];
     addMsg('assistant',w);
     chatHistory.push({role:'assistant',content:w});
     speakText(w);
-  },400);
+  },300);
+}
+
+// Init voix pour le lock screen dès le chargement
+window.addEventListener('load', () => {
+  window.speechSynthesis.getVoices();
 });
 </script>
 </body>
