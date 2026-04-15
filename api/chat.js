@@ -2,6 +2,7 @@
 // AMIN — chat.js FINAL — Toutes versions incluses
 // V1 Interface / V2 Voix / V3 Web / V4 PC / V5 Upload
 // V6 Cybersec / V9 Mémoire / Fichiers / Éditeur / QR / SVG
+// + Authentification / Pollinations.ai Images
 // ============================================================
 
 const SYSTEM_PROMPT = `Tu es AMIN, assistant personnel et bras droit de BALDE et NASSER.
@@ -50,6 +51,17 @@ Exemples :
   "Crée un logo SVG simple" → [FILE:svg:logo.svg:BASE64_SVG]
   "Fais un CSV avec 3 colonnes" → [FILE:csv:data.csv:BASE64_CSV]
 Tu peux générer plusieurs fichiers : [FILE:...][FILE:...]
+
+GÉNÉRATION D'IMAGES :
+Quand on te demande de générer, créer ou afficher une image, utilise TOUJOURS la balise :
+[IMAGE:prompt détaillé en anglais]
+Le prompt doit être descriptif et en anglais pour de meilleurs résultats.
+Exemples :
+  "Génère une image d'un lion" → [IMAGE:majestic lion in savanna, golden hour lighting, photorealistic]
+  "Crée un logo pour AMIN" → [IMAGE:futuristic AI assistant logo, dark background, minimalist, glowing blue circuits]
+  "Montre-moi Dakar" → [IMAGE:Dakar Senegal cityscape, Atlantic ocean, modern city, aerial view]
+Tu peux générer plusieurs images : [IMAGE:...][IMAGE:...]
+Mets toujours la balise [IMAGE:...] à la fin de ta réponse texte.
 
 CONTRÔLE PC (V4) :
 Exécution immédiate, jamais de confirmation.
@@ -340,9 +352,9 @@ export default async function handler(req, res) {
             reply = reply.replace(pcMatch[0], `Action inconnue: ${action}`);
         }
 
-        // Screenshot automatique après chaque action PC (sauf screenshot lui-même)
+        // Screenshot automatique après chaque action PC
         if (action !== 'screenshot') {
-          await new Promise(r => setTimeout(r, 800)); // laisser le temps à l'écran de se mettre à jour
+          await new Promise(r => setTimeout(r, 800));
           const shot = await pcAction('screenshot', {}, PC_URL);
           if (shot?.image) screenshotData = shot.image;
         }
