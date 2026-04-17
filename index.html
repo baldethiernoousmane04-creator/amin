@@ -24,15 +24,19 @@ body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; 
 .lock-logo { margin-bottom:40px; }
 .lock-status { font-size:10px; color:#333; letter-spacing:3px; margin-bottom:36px; min-height:14px; transition:color .3s; text-transform:uppercase; }
 .lock-status.listening { color:#555; }
+.lock-status.step1 { color:#666; }
+.lock-status.step2 { color:#999; }
 .lock-status.success { color:#fff; }
 .lock-status.error { color:#ff3b30; }
 .lock-mic-ring { width:76px; height:76px; border-radius:50%; border:1px solid #1a1a1a; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .4s; margin-bottom:32px; }
 .lock-mic-ring.listening { border-color:rgba(255,255,255,0.2); box-shadow:0 0 0 10px rgba(255,255,255,0.03),0 0 0 20px rgba(255,255,255,0.015); animation:pulse-ring 2s infinite; }
+.lock-mic-ring.step1 { border-color:rgba(255,255,255,0.25); box-shadow:0 0 0 10px rgba(255,255,255,0.04),0 0 0 20px rgba(255,255,255,0.02); animation:pulse-ring 2s infinite; }
+.lock-mic-ring.step2 { border-color:rgba(255,255,255,0.4); box-shadow:0 0 0 10px rgba(255,255,255,0.06),0 0 0 20px rgba(255,255,255,0.03); animation:pulse-ring 1.5s infinite; }
 .lock-mic-ring.success { border-color:rgba(255,255,255,0.4); }
 .lock-mic-ring.error { border-color:#ff3b30; }
 @keyframes pulse-ring { 0%{box-shadow:0 0 0 0 rgba(255,255,255,0.1),0 0 0 0 rgba(255,255,255,0.05);}70%{box-shadow:0 0 0 14px rgba(255,255,255,0),0 0 0 24px rgba(255,255,255,0);}100%{box-shadow:0 0 0 0 rgba(255,255,255,0),0 0 0 0 rgba(255,255,255,0);} }
 .lock-mic-ring svg { width:24px; height:24px; fill:#fff; opacity:0.6; }
-.lock-mic-ring.listening svg { opacity:1; }
+.lock-mic-ring.listening svg, .lock-mic-ring.step1 svg, .lock-mic-ring.step2 svg { opacity:1; }
 .lock-manual { background:transparent; border:none; color:#1e1e1e; font-size:9px; letter-spacing:2px; cursor:pointer; font-family:'Inter',sans-serif; text-transform:uppercase; transition:color .2s; }
 .lock-manual:hover { color:#444; }
 
@@ -235,75 +239,208 @@ textarea::placeholder{color:var(--dim);} textarea:focus{border-color:rgba(255,25
 
 // ══ AUTH ══
 const LOCK_PASSWORD = 'BM0101';
-const VOICE_PHRASE  = 'override protocol alpha';
-const UNLOCK_MSGS   = [
+// 3 mots séparés — détectés un par un
+const LOCK_WORDS = ['override', 'protocol', 'alpha'];
+const UNLOCK_MSGS = [
   'Accès confirmé. Bonsoir Monsieur Baldé.',
   'Identité vérifiée. Je suis à votre disposition, Monsieur Baldé.',
   'Bienvenue Monsieur Baldé. Système en ligne.',
   'Accès autorisé. Bonne soirée, Monsieur Baldé.',
   'Système déverrouillé. Tout est prêt, Monsieur Baldé.'
 ];
-let lockRec=null, lockMicOn=false, pwAttempts=0, pwBlocked=false;
 
-function setLockStatus(text,cls){const el=document.getElementById('lockStatus');el.textContent=text;el.className='lock-status'+(cls?' '+cls:'');}
+let lockRec = null, lockMicOn = false, lockStep = 0, lockStepTimer = null;
+let pwAttempts = 0, pwBlocked = false;
 
-function startLockMic(){
-  if(!('webkitSpeechRecognition'in window||'SpeechRecognition'in window)){setLockStatus('MICRO NON SUPPORTÉ');return;}
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  lockRec=new SR();lockRec.lang='en-US';lockRec.continuous=false;lockRec.interimResults=false;lockRec.maxAlternatives=6;
-  lockMicOn=true;
-  document.getElementById('lockMicRing').classList.add('listening');
-  setLockStatus('ÉCOUTE EN COURS','listening');
-  lockRec.onresult=(e)=>{
-    const alts=Array.from({length:e.results[0].length},(_,i)=>e.results[0][i].transcript.toLowerCase().replace(/[^a-z\s]/g,'').trim());
-    const matched=alts.some(t=>t.includes('override protocol alpha')||(t.includes('override')&&t.includes('protocol')&&t.includes('alpha')));
-    stopLockMic();
-    if(matched){unlockApp();}
-    else{document.getElementById('lockMicRing').classList.add('error');setLockStatus('PHRASE NON RECONNUE','error');setTimeout(()=>{document.getElementById('lockMicRing').classList.remove('error');startLockMic();},2000);}
-  };
-  lockRec.onerror=()=>{stopLockMic();setLockStatus('ERREUR MICRO','error');setTimeout(startLockMic,2500);};
-  lockRec.onend=()=>{if(lockMicOn)setTimeout(startLockMic,400);};
-  try{lockRec.start();}catch(e){}
+function setLockStatus(text, cls) {
+  const el = document.getElementById('lockStatus');
+  el.textContent = text;
+  el.className = 'lock-status' + (cls ? ' ' + cls : '');
 }
 
-function stopLockMic(){lockMicOn=false;document.getElementById('lockMicRing').classList.remove('listening');try{lockRec?.stop();}catch(e){}}
-function toggleLockMic(){if(lockMicOn){stopLockMic();setLockStatus('MIC EN PAUSE');}else{startLockMic();}}
-
-function unlockApp(){
-  stopLockMic();
-  document.getElementById('lockMicRing').classList.add('success');
-  const msg=UNLOCK_MSGS[Math.floor(Math.random()*UNLOCK_MSGS.length)];
-  setLockStatus('ACCÈS AUTORISÉ','success');
-  speakUnlock(msg,()=>{document.getElementById('lockScreen').classList.add('hidden');document.getElementById('lockPwModal').classList.remove('open');initApp();});
+function setLockRingClass(cls) {
+  const ring = document.getElementById('lockMicRing');
+  ring.className = 'lock-mic-ring' + (cls ? ' ' + cls : '');
 }
 
-function speakUnlock(text,cb){
+// Feedback vocal discret entre les mots — voix masculine française, courte
+function speakLockFeedback(text, cb) {
   window.speechSynthesis.cancel();
-  const voices=window.speechSynthesis.getVoices();
-  const male=['thomas','paul','nicolas','guillaume','jean','pierre','henri','claude'];
-  const female=['amelie','camille','marie','lucie','alice','julie','victoria','sophie','emma','lea'];
-  const voice=voices.find(v=>v.lang.startsWith('fr')&&male.some(n=>v.name.toLowerCase().includes(n)))||voices.find(v=>v.lang.startsWith('fr')&&!female.some(n=>v.name.toLowerCase().includes(n)))||voices.find(v=>v.lang.startsWith('fr'));
-  const u=new SpeechSynthesisUtterance(text);
-  u.lang='fr-FR';u.rate=0.9;u.pitch=0.78;u.volume=1;
-  if(voice)u.voice=voice;
-  u.onend=()=>{if(cb)setTimeout(cb,200);};
-  u.onerror=()=>{if(cb)setTimeout(cb,200);};
+  const voices = window.speechSynthesis.getVoices();
+  const male = ['thomas','paul','nicolas','guillaume','jean','pierre','henri','claude'];
+  const female = ['amelie','camille','marie','lucie','alice','julie','victoria','sophie','emma','lea'];
+  const voice = voices.find(v => v.lang.startsWith('fr') && male.some(n => v.name.toLowerCase().includes(n)))
+    || voices.find(v => v.lang.startsWith('fr') && !female.some(n => v.name.toLowerCase().includes(n)))
+    || voices.find(v => v.lang.startsWith('fr'));
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'fr-FR'; u.rate = 1.0; u.pitch = 0.78; u.volume = 1;
+  if (voice) u.voice = voice;
+  u.onend = () => { if (cb) cb(); };
+  u.onerror = () => { if (cb) cb(); };
   window.speechSynthesis.speak(u);
-  setTimeout(()=>{if(!document.getElementById('lockScreen').classList.contains('hidden'))if(cb)cb();},4500);
 }
 
-function openPwModal(){document.getElementById('lockPwModal').classList.add('open');setTimeout(()=>document.getElementById('lockPwInput').focus(),100);}
-function closePwModal(){document.getElementById('lockPwModal').classList.remove('open');document.getElementById('lockPwInput').value='';document.getElementById('lockPwError').textContent='';}
-function checkPassword(){
-  if(pwBlocked)return;
-  const val=document.getElementById('lockPwInput').value;
-  if(val===LOCK_PASSWORD){unlockApp();}
-  else{pwAttempts++;document.getElementById('lockPwInput').value='';
-    if(pwAttempts>=3){pwBlocked=true;document.getElementById('lockPwError').textContent='Bloqué 30 secondes.';setTimeout(()=>{pwBlocked=false;pwAttempts=0;document.getElementById('lockPwError').textContent='';},30000);}
-    else{document.getElementById('lockPwError').textContent='Incorrect. '+(3-pwAttempts)+' essai(s) restant.';}
+function resetLockStep() {
+  lockStep = 0;
+  clearTimeout(lockStepTimer);
+  lockStepTimer = null;
+}
+
+function startStepTimer() {
+  clearTimeout(lockStepTimer);
+  // 10 secondes pour dire le mot suivant sinon reset
+  lockStepTimer = setTimeout(() => {
+    resetLockStep();
+    setLockStatus('DÉLAI EXPIRÉ — RECOMMENCEZ', 'error');
+    setLockRingClass('listening');
+    setTimeout(() => {
+      setLockStatus('ÉCOUTE EN COURS', 'listening');
+    }, 1800);
+  }, 10000);
+}
+
+function startLockMic() {
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    setLockStatus('MICRO NON SUPPORTÉ'); return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  lockRec = new SR();
+  lockRec.lang = 'en-US';
+  lockRec.continuous = false;
+  lockRec.interimResults = false;
+  lockRec.maxAlternatives = 6;
+  lockMicOn = true;
+
+  if (lockStep === 0) {
+    setLockRingClass('listening');
+    setLockStatus('ÉCOUTE EN COURS', 'listening');
+  }
+
+  lockRec.onresult = (e) => {
+    // Toutes les alternatives transcrites
+    const alts = Array.from({ length: e.results[0].length }, (_, i) =>
+      e.results[0][i].transcript.toLowerCase().replace(/[^a-z\s]/g, '').trim()
+    );
+
+    const expected = LOCK_WORDS[lockStep];
+    // Le mot est détecté si une des alternatives le contient
+    const heard = alts.some(t => t.includes(expected));
+
+    stopLockMic();
+
+    if (heard) {
+      lockStep++;
+      if (lockStep === 1) {
+        // Premier mot validé
+        setLockRingClass('step1');
+        setLockStatus('· · ·', 'step1');
+        speakLockFeedback('Un.', () => { startStepTimer(); startLockMic(); });
+      } else if (lockStep === 2) {
+        // Deuxième mot validé
+        setLockRingClass('step2');
+        setLockStatus('· · · · ·', 'step2');
+        speakLockFeedback('Deux.', () => { startStepTimer(); startLockMic(); });
+      } else if (lockStep >= 3) {
+        // Troisième mot — accès accordé
+        clearTimeout(lockStepTimer);
+        resetLockStep();
+        unlockApp();
+      }
+    } else {
+      // Mauvais mot — reset et réessai
+      resetLockStep();
+      setLockRingClass('error');
+      setLockStatus('MOT INCORRECT', 'error');
+      setTimeout(() => {
+        setLockRingClass('listening');
+        setLockStatus('ÉCOUTE EN COURS', 'listening');
+        startLockMic();
+      }, 2000);
+    }
+  };
+
+  lockRec.onerror = () => {
+    stopLockMic();
+    setLockStatus('ERREUR MICRO', 'error');
+    setTimeout(startLockMic, 2500);
+  };
+
+  lockRec.onend = () => {
+    // Ne redémarre automatiquement que si on attend encore un mot (step en cours et pas d'erreur)
+    // Le redémarrage est géré manuellement dans les callbacks ci-dessus
+  };
+
+  try { lockRec.start(); } catch (e) {}
+}
+
+function stopLockMic() {
+  lockMicOn = false;
+  try { lockRec?.stop(); } catch (e) {}
+}
+
+function toggleLockMic() {
+  if (lockMicOn) {
+    stopLockMic();
+    resetLockStep();
+    setLockRingClass('');
+    setLockStatus('MIC EN PAUSE');
+  } else {
+    startLockMic();
   }
 }
-document.getElementById('lockPwInput').addEventListener('keydown',e=>{if(e.key==='Enter')checkPassword();});
+
+function unlockApp() {
+  stopLockMic();
+  setLockRingClass('success');
+  // Pas de texte affiché — seulement la voix
+  setLockStatus('');
+  const msg = UNLOCK_MSGS[Math.floor(Math.random() * UNLOCK_MSGS.length)];
+  speakUnlock(msg, () => {
+    document.getElementById('lockScreen').classList.add('hidden');
+    document.getElementById('lockPwModal').classList.remove('open');
+    initApp();
+  });
+}
+
+function speakUnlock(text, cb) {
+  window.speechSynthesis.cancel();
+  const voices = window.speechSynthesis.getVoices();
+  const male = ['thomas','paul','nicolas','guillaume','jean','pierre','henri','claude'];
+  const female = ['amelie','camille','marie','lucie','alice','julie','victoria','sophie','emma','lea'];
+  const voice = voices.find(v => v.lang.startsWith('fr') && male.some(n => v.name.toLowerCase().includes(n)))
+    || voices.find(v => v.lang.startsWith('fr') && !female.some(n => v.name.toLowerCase().includes(n)))
+    || voices.find(v => v.lang.startsWith('fr'));
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'fr-FR'; u.rate = 0.9; u.pitch = 0.78; u.volume = 1;
+  if (voice) u.voice = voice;
+  u.onend = () => { if (cb) setTimeout(cb, 200); };
+  u.onerror = () => { if (cb) setTimeout(cb, 200); };
+  window.speechSynthesis.speak(u);
+  // Fallback si la voix ne se lance pas
+  setTimeout(() => {
+    if (!document.getElementById('lockScreen').classList.contains('hidden')) if (cb) cb();
+  }, 5000);
+}
+
+function openPwModal() { document.getElementById('lockPwModal').classList.add('open'); setTimeout(() => document.getElementById('lockPwInput').focus(), 100); }
+function closePwModal() { document.getElementById('lockPwModal').classList.remove('open'); document.getElementById('lockPwInput').value = ''; document.getElementById('lockPwError').textContent = ''; }
+function checkPassword() {
+  if (pwBlocked) return;
+  const val = document.getElementById('lockPwInput').value;
+  if (val === LOCK_PASSWORD) { unlockApp(); }
+  else {
+    pwAttempts++;
+    document.getElementById('lockPwInput').value = '';
+    if (pwAttempts >= 3) {
+      pwBlocked = true;
+      document.getElementById('lockPwError').textContent = 'Bloqué 30 secondes.';
+      setTimeout(() => { pwBlocked = false; pwAttempts = 0; document.getElementById('lockPwError').textContent = ''; }, 30000);
+    } else {
+      document.getElementById('lockPwError').textContent = 'Incorrect. ' + (3 - pwAttempts) + ' essai(s) restant.';
+    }
+  }
+}
+document.getElementById('lockPwInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkPassword(); });
 
 // ══ APP STATE ══
 const SESSION_ID='session_'+Date.now();
