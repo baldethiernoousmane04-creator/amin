@@ -239,8 +239,6 @@ textarea::placeholder{color:var(--dim);} textarea:focus{border-color:rgba(255,25
 
 // ══ AUTH ══
 const LOCK_PASSWORD = 'BM0101';
-// 3 mots séparés — détectés un par un
-const LOCK_WORDS = ['override', 'protocol', 'alpha'];
 const UNLOCK_MSGS = [
   'Accès confirmé. Bonsoir Monsieur Baldé.',
   'Identité vérifiée. Je suis à votre disposition, Monsieur Baldé.',
@@ -249,7 +247,7 @@ const UNLOCK_MSGS = [
   'Système déverrouillé. Tout est prêt, Monsieur Baldé.'
 ];
 
-let lockRec = null, lockMicOn = false, lockStep = 0, lockStepTimer = null;
+let lockRec = null, lockMicOn = false, lockUnlocking = false;
 let pwAttempts = 0, pwBlocked = false;
 
 function setLockStatus(text, cls) {
@@ -263,111 +261,67 @@ function setLockRingClass(cls) {
   ring.className = 'lock-mic-ring' + (cls ? ' ' + cls : '');
 }
 
-// Feedback vocal discret entre les mots — voix masculine française, courte
-function speakLockFeedback(text, cb) {
-  window.speechSynthesis.cancel();
-  const voices = window.speechSynthesis.getVoices();
-  const male = ['thomas','paul','nicolas','guillaume','jean','pierre','henri','claude'];
-  const female = ['amelie','camille','marie','lucie','alice','julie','victoria','sophie','emma','lea'];
-  const voice = voices.find(v => v.lang.startsWith('fr') && male.some(n => v.name.toLowerCase().includes(n)))
-    || voices.find(v => v.lang.startsWith('fr') && !female.some(n => v.name.toLowerCase().includes(n)))
-    || voices.find(v => v.lang.startsWith('fr'));
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'fr-FR'; u.rate = 1.0; u.pitch = 0.78; u.volume = 1;
-  if (voice) u.voice = voice;
-  u.onend = () => { if (cb) cb(); };
-  u.onerror = () => { if (cb) cb(); };
-  window.speechSynthesis.speak(u);
-}
-
-function resetLockStep() {
-  lockStep = 0;
-  clearTimeout(lockStepTimer);
-  lockStepTimer = null;
-}
-
-function startStepTimer() {
-  clearTimeout(lockStepTimer);
-  // 10 secondes pour dire le mot suivant sinon reset
-  lockStepTimer = setTimeout(() => {
-    resetLockStep();
-    setLockStatus('DÉLAI EXPIRÉ — RECOMMENCEZ', 'error');
-    setLockRingClass('listening');
-    setTimeout(() => {
-      setLockStatus('ÉCOUTE EN COURS', 'listening');
-    }, 1800);
-  }, 10000);
+// Détection souple — accepte approximations courantes
+function wordMatch(transcript, word) {
+  const t = transcript.toLowerCase().replace(/[^a-z\s]/g, '');
+  const variants = {
+    'override': ['override', 'over ride', 'overide', 'over', 'overried', 'overwright'],
+    'alpha':    ['alpha', 'alfa', 'alpfa', 'alpa', 'alfo', 'alfha']
+  };
+  const list = variants[word] || [word];
+  return list.some(v => t.includes(v));
 }
 
 function startLockMic() {
   if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
     setLockStatus('MICRO NON SUPPORTÉ'); return;
   }
+  if (lockUnlocking) return;
+
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   lockRec = new SR();
   lockRec.lang = 'en-US';
-  lockRec.continuous = false;
-  lockRec.interimResults = false;
-  lockRec.maxAlternatives = 6;
+  lockRec.continuous = true;       // écoute continue — ne s'arrête pas
+  lockRec.interimResults = true;   // résultats intermédiaires aussi
+  lockRec.maxAlternatives = 10;
   lockMicOn = true;
 
-  if (lockStep === 0) {
-    setLockRingClass('listening');
-    setLockStatus('ÉCOUTE EN COURS', 'listening');
-  }
+  setLockRingClass('listening');
+  setLockStatus('ÉCOUTE EN COURS', 'listening');
 
   lockRec.onresult = (e) => {
-    // Toutes les alternatives transcrites
-    const alts = Array.from({ length: e.results[0].length }, (_, i) =>
-      e.results[0][i].transcript.toLowerCase().replace(/[^a-z\s]/g, '').trim()
-    );
+    if (lockUnlocking) return;
 
-    const expected = LOCK_WORDS[lockStep];
-    // Le mot est détecté si une des alternatives le contient
-    const heard = alts.some(t => t.includes(expected));
-
-    stopLockMic();
-
-    if (heard) {
-      lockStep++;
-      if (lockStep === 1) {
-        // Premier mot validé
-        setLockRingClass('step1');
-        setLockStatus('· · ·', 'step1');
-        speakLockFeedback('Un.', () => { startStepTimer(); startLockMic(); });
-      } else if (lockStep === 2) {
-        // Deuxième mot validé
-        setLockRingClass('step2');
-        setLockStatus('· · · · ·', 'step2');
-        speakLockFeedback('Deux.', () => { startStepTimer(); startLockMic(); });
-      } else if (lockStep >= 3) {
-        // Troisième mot — accès accordé
-        clearTimeout(lockStepTimer);
-        resetLockStep();
-        unlockApp();
+    // Accumule tout ce qui a été entendu dans cette session
+    let fullText = '';
+    for (let i = 0; i < e.results.length; i++) {
+      for (let j = 0; j < e.results[i].length; j++) {
+        fullText += ' ' + e.results[i][j].transcript;
       }
-    } else {
-      // Mauvais mot — reset et réessai
-      resetLockStep();
-      setLockRingClass('error');
-      setLockStatus('MOT INCORRECT', 'error');
-      setTimeout(() => {
-        setLockRingClass('listening');
-        setLockStatus('ÉCOUTE EN COURS', 'listening');
-        startLockMic();
-      }, 2000);
+    }
+
+    const hasOverride = wordMatch(fullText, 'override');
+    const hasAlpha    = wordMatch(fullText, 'alpha');
+
+    if (hasOverride && hasAlpha) {
+      lockUnlocking = true;
+      stopLockMic();
+      unlockApp();
     }
   };
 
-  lockRec.onerror = () => {
+  lockRec.onerror = (e) => {
+    if (lockUnlocking) return;
+    if (e.error === 'no-speech' || e.error === 'aborted') return;
+    // Redémarre silencieusement en cas d'erreur
     stopLockMic();
-    setLockStatus('ERREUR MICRO', 'error');
-    setTimeout(startLockMic, 2500);
+    setTimeout(startLockMic, 1000);
   };
 
   lockRec.onend = () => {
-    // Ne redémarre automatiquement que si on attend encore un mot (step en cours et pas d'erreur)
-    // Le redémarrage est géré manuellement dans les callbacks ci-dessus
+    if (lockUnlocking) return;
+    // Redémarre automatiquement — écoute permanente
+    if (lockMicOn) setTimeout(() => { try { lockRec.start(); } catch(e) {} }, 300);
   };
 
   try { lockRec.start(); } catch (e) {}
@@ -381,7 +335,6 @@ function stopLockMic() {
 function toggleLockMic() {
   if (lockMicOn) {
     stopLockMic();
-    resetLockStep();
     setLockRingClass('');
     setLockStatus('MIC EN PAUSE');
   } else {
