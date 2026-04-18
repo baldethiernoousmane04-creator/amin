@@ -146,6 +146,10 @@ function needsWebSearch(text) {
   return /actu|news|aujourd|maintenant|match|score|prix|météo|résultat|live|direct|récent|dernier|2024|2025|2026|qui est|c'est quoi|champion|élection|guerre|crise|bourse|crypto|bitcoin/i.test(text);
 }
 
+function needsNews(text) {
+  return /actu|news|monde|mondial|guerre|politique|économi|bourse|marché|crise|élection|attaque|conflit|aujourd|ce qui se passe|quoi de neuf|headline|breaking/i.test(text);
+}
+
 async function webSearch(query, apiKey) {
   try {
     const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=8&freshness=pd&search_lang=fr&country=SN`;
@@ -154,6 +158,49 @@ async function webSearch(query, apiKey) {
     const d = await r.json();
     const items = [...(d.news?.results?.slice(0,3)||[]), ...(d.web?.results?.slice(0,4)||[])].filter(x => x.title || x.description);
     return items.length ? items.map(x => `${x.title}: ${x.description||''}`).join('\n') : null;
+  } catch { return null; }
+}
+
+// ── RSS News gratuit (inspiré de NOX) ────────────────────────
+const RSS_FEEDS = [
+  { url: 'https://feeds.bbci.co.uk/news/world/rss.xml',            source: 'BBC' },
+  { url: 'https://www.aljazeera.com/xml/rss/all.xml',              source: 'ALJAZEERA' },
+  { url: 'https://www.cnbc.com/id/100727362/device/rss/rss.html',  source: 'CNBC' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', source: 'NYT' },
+  { url: 'https://www.rfi.fr/fr/rss-actualite-internationale.xml', source: 'RFI' },
+];
+
+async function fetchRSSFeed(url, source) {
+  try {
+    const r = await fetch(url, {
+      headers: { 'User-Agent': 'AMIN-AI/1.0' },
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!r.ok) return [];
+    const text = await r.text();
+    const items = [];
+    const itemRegex = /<item[^>]*>([\s\S]*?)<\/item>/gi;
+    let m;
+    while ((m = itemRegex.exec(text)) !== null && items.length < 4) {
+      const b = m[1];
+      const title = (b.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i) ||
+                     b.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1];
+      const desc  = (b.match(/<description[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i) ||
+                     b.match(/<description[^>]*>([\s\S]*?)<\/description>/i) || [])[1];
+      if (title) {
+        const clean = desc ? desc.replace(/<[^>]+>/g, '').replace(/&[a-z]+;/gi, ' ').trim().slice(0, 160) : '';
+        items.push(`[${source}] ${title.trim()}${clean ? ' — ' + clean : ''}`);
+      }
+    }
+    return items;
+  } catch { return []; }
+}
+
+async function fetchAllNews() {
+  try {
+    const results = await Promise.allSettled(RSS_FEEDS.map(f => fetchRSSFeed(f.url, f.source)));
+    const all = results.filter(r => r.status === 'fulfilled').flatMap(r => r.value);
+    return all.length ? all.slice(0, 15).join('\n') : null;
   } catch { return null; }
 }
 
@@ -255,7 +302,13 @@ export default async function handler(req, res) {
 
     // ── Web Search (V3) ──────────────────────────────────────
     let webData = '';
-    if (BRAVE_KEY && needsWebSearch(userText)) {
+    // RSS News gratuit en temps reel (BBC, RFI, Al Jazeera, NYT, CNBC)
+    if (needsNews(userText)) {
+      const rssData = await fetchAllNews();
+      if (rssData) webData = 'ACTUALITES TEMPS REEL:\n' + rssData;
+    }
+    // Brave Search en complement si cle dispo et pas encore de data
+    if (BRAVE_KEY && needsWebSearch(userText) && !webData) {
       webData = await webSearch(userText + ' ' + new Date().toLocaleDateString('fr-FR'), BRAVE_KEY) || '';
     }
 
