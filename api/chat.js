@@ -449,12 +449,7 @@ export default async function handler(req, res) {
             reply = reply.replace(pcMatch[0], `Action inconnue: ${action}`);
         }
 
-        // Screenshot automatique après chaque action PC
-        if (action !== 'screenshot') {
-          await new Promise(r => setTimeout(r, 800));
-          const shot = await pcAction('screenshot', {}, PC_URL);
-          if (shot?.image) screenshotData = shot.image;
-        }
+        // Screenshot automatique désactivé
       }
     }
 
