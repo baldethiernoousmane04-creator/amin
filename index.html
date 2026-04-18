@@ -677,7 +677,31 @@ function startWakeWord(){
 function toggleMic(){if(!recognition)return;if($micBtn.classList.contains('on')){wakeActive=false;$micBtn.classList.remove('on');}else{stopSpeaking();wakeActive=true;$micBtn.classList.add('on');}}
 
 // ══ MESSAGES ══
-function addMsg(role,text){const div=document.createElement('div');div.className='msg '+(role==='assistant'?'amin':'user');const bubble=document.createElement('div');bubble.className='bubble';if(role==='assistant')bubble.innerHTML=marked.parse(text.replace(/\[BGCOLOR:[^\]]*\]/g,'').replace(/\[IMAGE:[^\]]*\]/g,'').trim());else bubble.textContent=text;div.appendChild(bubble);$msg.appendChild(div);$msg.scrollTop=$msg.scrollHeight;}
+// Extrait balises FILE du texte (fallback si chat.js ne les parse pas)
+function extractFileTags(text){
+  const files=[];
+  const re=/\[FILE:([a-zA-Z0-9]+):([^:\]]+):([^\]]*)\]/g;
+  let m;
+  while((m=re.exec(text))!==null)files.push({ext:m[1].toLowerCase(),name:m[2],content:m[3]});
+  return files;
+}
+function removeFileTags(text){return text.replace(/\[FILE:[^\]]*\]/g,'').trim();}
+
+function addMsg(role,text){
+  // Extraire fichiers du texte si présents
+  if(role==='assistant'){
+    const files=extractFileTags(text);
+    if(files.length){
+      text=removeFileTags(text);
+      setTimeout(()=>showFileCards(files),100);
+    }
+  }
+  const div=document.createElement('div');div.className='msg '+(role==='assistant'?'amin':'user');
+  const bubble=document.createElement('div');bubble.className='bubble';
+  if(role==='assistant')bubble.innerHTML=marked.parse(text.replace(/\[BGCOLOR:[^\]]*\]/g,'').replace(/\[IMAGE:[^\]]*\]/g,'').replace(/\[FILE:[^\]]*\]/g,'').trim());
+  else bubble.textContent=text;
+  div.appendChild(bubble);$msg.appendChild(div);$msg.scrollTop=$msg.scrollHeight;
+}
 function changeBg(color){document.body.style.background=color;const tmp=document.createElement('div');tmp.style.color=color;document.body.appendChild(tmp);const rgb=getComputedStyle(tmp).color;document.body.removeChild(tmp);const m=rgb.match(/\d+/g);if(m){const b=(+m[0]*299+ +m[1]*587+ +m[2]*114)/1000;document.documentElement.style.setProperty('--text',b>128?'#000':'#fff');document.documentElement.style.setProperty('--dim',b>128?'#444':'#555');}}
 
 // ══ API ══
